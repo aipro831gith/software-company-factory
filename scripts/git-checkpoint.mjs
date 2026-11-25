@@ -52,16 +52,15 @@ function runEnvSafetyPrecheck() {
   }
 }
 
-function updateSessionLockSha(sha) {
-  const lockPath = path.join(REPO_ROOT, '.factory', 'session.lock.json');
-  if (!fs.existsSync(lockPath)) return;
-  try {
-    const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
-    lock.last_commit_sha = sha;
-    fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n', 'utf8');
-  } catch {
-    // Non-fatal if lock cannot be parsed
-  }
+function updateCheckpointRecord(sha, msg, wave = null) {
+  const logsDir = path.join(REPO_ROOT, '.factory', 'logs');
+  fs.mkdirSync(logsDir, { recursive: true });
+  const recordPath = path.join(logsDir, 'last-checkpoint.json');
+  fs.writeFileSync(
+    recordPath,
+    JSON.stringify({ last_commit_sha: sha, message: msg, wave, timestamp: new Date().toISOString() }, null, 2) + '\n',
+    'utf8'
+  );
 }
 
 const [, , cmd, ...rest] = process.argv;
@@ -94,7 +93,7 @@ if (cmd === 'init') {
   }
   const sha = runGit(['rev-parse', '--short', 'HEAD'], REPO_ROOT, true);
   if (sha) {
-    updateSessionLockSha(sha);
+    updateCheckpointRecord(sha, msg, 0);
     runGit(['tag', '-f', 'checkpoint-init']);
   }
   console.log(`[PASS] Git initialized and checkpointed (${sha || 'empty'}): ${msg}`);
@@ -127,7 +126,7 @@ if (cmd === 'commit') {
   }
   runGit(['commit', '-m', msg]);
   const sha = runGit(['rev-parse', '--short', 'HEAD']);
-  updateSessionLockSha(sha);
+  updateCheckpointRecord(sha, msg, wave ? Number(wave) : null);
   if (wave) {
     runGit(['tag', '-f', `checkpoint-wave-${wave}`]);
   }

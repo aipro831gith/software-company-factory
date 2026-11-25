@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0",
+  "fail_closed": true,
+  "hooks": [
+    {
+      "id": "session-lock-check",
+      "event": "pre-mutation",
+      "fail_closed": true,
+      "command": "node scripts/hook-runner.mjs --hook session-lock-check",
+      "description": "Blocks file mutations if .factory/session.lock.json is not ACTIVE for software-company-factory."
+    },
+    {
+      "id": "block-eval-usage",
+      "event": "pre-commit",
+      "fail_closed": true,
+      "command": "node scripts/hook-runner.mjs --hook block-eval-usage",
+      "description": "Rejects eval(), new Function(), and unsafe dynamic code execution."
+    },
+    {
+      "id": "block-float-money",
+      "event": "pre-commit",
+      "fail_closed": true,
+      "command": "node scripts/hook-runner.mjs --hook block-float-money",
+      "description": "Rejects floating-point arithmetic on currency, GST, gold weight, or ledger fields."
+    },
+    {
+      "id": "block-env-staging",
+      "event": "pre-commit",
+      "fail_closed": true,
+      "command": "node scripts/hook-runner.mjs --hook block-env-staging",
+      "description": "Hard-blocks staging .env, .env.local, private keys, or credentials into Git."
+    },
+    {
+      "id": "block-hardcoded-secrets",
+      "event": "pre-commit",
+      "fail_closed": true,
+      "command": "node scripts/hook-runner.mjs --hook block-hardcoded-secrets",
+      "description": "Runs Gitleaks or regex secret scan on every staged diff and client bundle env prefix."
+    },
+    {
+      "id": "block-assumed-spec-done",
+      "event": "pre-gate",
+      "fail_closed": true,
+      "command": "node scripts/hook-runner.mjs --hook block-assumed-spec-done",
+      "description": "Enforces Spec 0001: blocks marking any feature DONE if its spec is still ASSUMED or DRAFT."
+    },
+    {
+      "id": "block-unsourced-values",
+      "event": "pre-gate",
+      "fail_closed": true,
+      "command": "node scripts/hook-runner.mjs --hook block-unsourced-values",
+      "description": "Enforces Spec 0002: rejects specs missing Value Sourcing entries for UI/API fields."
+    },
+    {
+      "id": "pre-commit-portability",
+      "event": "pre-commit",
+      "fail_closed": true,
+      "command": "node scripts/check-portability.mjs",
+      "description": "Validates skill byte budgets, sub-files, openai.yaml, and zero hardcoded model names."
+    },
+    {
+      "id": "pre-commit-ast-collision",
+      "event": "pre-wave-merge",
+      "fail_closed": true,
+      "command": "node scripts/ast-collision-guard.mjs",
+      "description": "Checks file-lock manifests and symbol diffs across parallel wave workers before merge."
+    },
+    {
+      "id": "pre-commit-lint-typecheck",
+      "event": "pre-commit",
+      "fail_closed": true,
+      "command": "node scripts/hook-runner.mjs --hook pre-commit-lint-typecheck",
+      "description": "Runs project linter and strict TypeScript/syntax typecheck."
+    },
+    {
+      "id": "pre-commit-unit-tests",
+      "event": "pre-commit",
+      "fail_closed": true,
+      "command": "node scripts/hook-runner.mjs --hook pre-commit-unit-tests",
+      "description": "Runs affected unit tests before atomic commit."
+    },
+    {
+      "id": "post-wave-git-checkpoint",
+      "event": "post-wave",
+      "fail_closed": true,
+      "command": "node scripts/git-checkpoint.mjs status",
+      "description": "Verifies wave checkpoint readiness and runs atomic commit plus rollback tag."
+    },
+    {
+      "id": "pre-release-security-gate",
+      "event": "pre-release",
+      "fail_closed": true,
+      "command": "node scripts/hook-runner.mjs --hook pre-release-security-gate",
+      "description": "Runs 5-stage scf-sec-ops checks (semgrep, trivy, gitleaks, PII check, logic audit)."
+    },
+    {
+      "id": "pre-deploy-gate-verify",
+      "event": "pre-deploy",
+      "fail_closed": true,
+      "command": "node scripts/gate-check.mjs --all",
+      "description": "Verifies all .factory/gates/*.gate.json records are PASS before release."
+    },
+    {
+      "id": "block-unapproved-deploy",
+      "event": "pre-deploy",
+      "fail_closed": true,
+      "command": "node scripts/hook-runner.mjs --hook block-unapproved-deploy",
+      "description": "Hard-blocks automated production deploy without explicit manual Boss /scf-deploy approval."
+    }
+  ]
+}

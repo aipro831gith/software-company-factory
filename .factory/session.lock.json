@@ -1,0 +1,13 @@
+{
+  "department": "software-company-factory",
+  "version": "1.1.0",
+  "status": "ACTIVE",
+  "mode": "AUTOMATIC",
+  "active_target_project": null,
+  "started_at": "2026-11-25T18:26:09+05:30",
+  "ended_at": null,
+  "last_commit_sha": null,
+  "active_wave": 0,
+  "pending_human_gate": "PROCEED_TO_BATCH_2",
+  "deploy_approved_by_founder": false
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "routing_mode": "FOUNDER_OVERRIDE_ALLOWED",
+  "allow_founder_ui_model_selection": true,
+  "slots": {
+    "light_ops_slot": {
+      "primary": { "model": "gemini-4-hydrogen", "effort": "medium" },
+      "fallback": { "model": "active-antigravity-default", "effort": "high" }
+    },
+    "worker_slot": {
+      "primary": { "model": "gemini-4-hydrogen", "effort": "high" },
+      "fallback": { "model": "active-antigravity-default", "effort": "high" }
+    },
+    "architect_slot": {
+      "primary": { "model": "gemini-4-hydrogen", "effort": "xhigh" },
+      "secondary": { "model": "claude-sonnet-4.6", "effort": "high" },
+      "fallback": { "model": "active-antigravity-default", "effort": "high" }
+    },
+    "deep_logic_slot": {
+      "primary": { "model": "gemini-4-hydrogen", "effort": "xhigh" },
+      "fallback": { "model": "active-antigravity-default", "effort": "xhigh" }
+    },
+    "blind_reviewer_slot": {
+      "prefer_different_family": true,
+      "primary": { "model": "claude-sonnet-4.6", "effort": "high" },
+      "fallback": { "model": "gemini-4-hydrogen", "effort": "xhigh", "require_fresh_session": true }
+    }
+  }
+}

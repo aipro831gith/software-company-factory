@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "factory_name": "software-company-factory",
+  "factory_version": "1.1.0",
+  "platform": {
+    "os": "windows",
+    "primary_shell": "powershell",
+    "allow_posix_only_glue": false,
+    "offline_local_llm_enabled": false
+  },
+  "hardware_envelope": {
+    "ram_gb": 16,
+    "peak_ram_target_gb": 11.5,
+    "max_concurrent_workers_per_wave": 3,
+    "max_always_on_mcps": 4,
+    "worker_context_budget_kb": 40,
+    "hot_path_context_budget_kb": 90
+  },
+  "skill_validation": {
+    "canonical_skill_count": 18,
+    "skill_min_bytes": 4096,
+    "skill_target_min_bytes": 8192,
+    "skill_max_bytes": 32768,
+    "subfile_max_bytes": 24576,
+    "description_max_chars": 400,
+    "require_openai_yaml": true,
+    "forbid_hardcoded_models": true
+  },
+  "bug_handover": {
+    "max_attempts": 3,
+    "escalate_slot": "deep_logic_slot",
+    "triad_options_on_escalation": true
+  },
+  "security_standards": {
+    "password_hash_algorithm": "argon2id",
+    "money_representation": "integer_paise_or_bigint_decimal",
+    "weight_representation": "integer_milligrams",
+    "manual_deploy_only": true,
+    "fail_closed_hooks": true
+  },
+  "tiers": {
+    "Vibe": { "required_checks": 3, "require_spec_approval": false, "require_blind_review": false, "security_stages": [] },
+    "Lean": { "required_checks": 6, "require_spec_approval": false, "require_blind_review": false, "security_stages": [1] },
+    "Medium": { "required_checks": 11, "require_spec_approval": true, "require_blind_review": false, "security_stages": [1, 2, 3] },
+    "Full": { "required_checks": 15, "require_spec_approval": true, "require_blind_review": true, "security_stages": [1, 2, 3, 4, 5] }
+  }
+}

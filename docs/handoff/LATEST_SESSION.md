@@ -1,8 +1,8 @@
 # Latest Session Handoff (`docs/handoff/LATEST_SESSION.md`)
 
 - **Department:** `software-company-factory`
-- **Session State:** `ACTIVE` (Mother Factory Build — Batch 3 Verified)
-- **Last Completed:** Batch 3 Engineering, Wave Orchestration & QA skills (`scf-scope`, `scf-audit`, `scf-architect`, `scf-develop`, `scf-check`, `scf-test`, `scf-debug`) built and verified.
+- **Session State:** `ACTIVE` (Mother Factory Build — All 4 Batches Complete & Verified)
+- **Last Completed:** Batch 4 Security (`scf-sec-ops`), Doc Sync (`scf-doc-sync`), Manual Release Gate (`scf-deploy`), and dormant plug-ins (`scf-legacy-re`, `scf-hardware-compliance`) built and verified (`18/18` skills).
 - **Open Bug Tickets:** None
-- **Last Passing Gate:** `Batch 3` (`check-portability.mjs` 13/18 skills PASS, zero hardcoded models)
-- **Exact Next Step:** Wait for `"Proceed to Batch 4"` from Founder to build Security, Doc Sync, Manual Deploy Gate, and optional plug-in skills.
+- **Last Passing Gate:** `Batch 4` (`check-portability.mjs --require-all` 18/18 PASS + `hook-runner.mjs --self-test` 14/14 PASS)
+- **Exact Next Step:** Run the 30-minute Smoke Test (`smoke-gold-calc`) via `/software-company-factory-start` before building Father's Jewelry Business ERP.

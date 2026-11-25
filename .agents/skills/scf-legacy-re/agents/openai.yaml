@@ -1,0 +1,14 @@
+name: scf-legacy-re
+version: 1.1.0
+display_name: Legacy Reverse-Engineering Plug-In
+description: Optional plug-in for reverse-engineering and safely modernizing legacy codebases and workflows with parity checks.
+default_model_slot: architect_slot
+deep_analysis_slot: deep_logic_slot
+model_registry: .factory/models.json
+invocation:
+  slash_command: /scf-legacy-re
+  optional_plugin: true
+  dormant_by_default: true
+  modes:
+    - rea-analysis
+    - craft-modernize

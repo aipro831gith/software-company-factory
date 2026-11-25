@@ -1,0 +1,15 @@
+name: scf-sec-ops
+version: 1.1.0
+display_name: 5-Stage Security & Compliance Officer
+description: Runs 5-stage fail-closed security audits (secrets, PII/Argon2id, prod hardening, deep logic, attacker review) and financial invariants.
+default_model_slot: deep_logic_slot
+adversarial_slot: blind_reviewer_slot
+model_registry: .factory/models.json
+invocation:
+  slash_command: /scf-sec-ops
+  tiers:
+    Medium: [1, 2, 3]
+    Full: [1, 2, 3, 4, 5]
+  writes_only:
+    - .factory/gates/
+    - .factory/tickets/

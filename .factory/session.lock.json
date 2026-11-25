@@ -8,6 +8,6 @@
   "ended_at": null,
   "last_commit_sha": "60b3900",
   "active_wave": 0,
-  "pending_human_gate": "PROCEED_TO_BATCH_4",
+  "pending_human_gate": "READY_FOR_SMOKE_TEST",
   "deploy_approved_by_founder": false
 }

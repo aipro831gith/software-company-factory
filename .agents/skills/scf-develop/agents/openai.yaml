@@ -1,0 +1,12 @@
+name: scf-develop
+version: 1.1.0
+display_name: Wave Build Orchestrator
+description: Orchestrates Database, Backend, and Frontend Leads plus max-3 flat wave workers with <=40KB slices and AST collision checks.
+default_model_slot: worker_slot
+critical_logic_slot: deep_logic_slot
+model_registry: .factory/models.json
+invocation:
+  slash_command: /scf-develop
+  wave_config: .factory/waves/wave-plan.json
+  max_concurrent_workers: 3
+  worker_context_budget_kb: 40

@@ -1,0 +1,12 @@
+name: scf-audit
+version: 1.1.0
+display_name: Codebase & Architecture Auditor
+description: Audits codebase structure, dependency hygiene, and financial math purity, and selects the best architecture pattern.
+default_model_slot: architect_slot
+deep_audit_slot: deep_logic_slot
+model_registry: .factory/models.json
+invocation:
+  slash_command: /scf-audit
+  writes_only:
+    - docs/specs/
+    - docs/handoff/

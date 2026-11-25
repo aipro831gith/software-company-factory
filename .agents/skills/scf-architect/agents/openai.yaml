@@ -1,0 +1,16 @@
+name: scf-architect
+version: 1.1.0
+display_name: Chief Architect & Spec Gatekeeper
+description: Selects optimal project stacks and authors dual Plain-English and Technical Specs enforcing Spec 0001 and Spec 0002.
+default_model_slot: architect_slot
+deep_invariants_slot: deep_logic_slot
+model_registry: .factory/models.json
+invocation:
+  slash_command: /scf-architect
+  writes_only:
+    - docs/specs/
+  human_gate:
+    required_for_tiers:
+      - Medium
+      - Full
+    approval_keyword: APPROVE

@@ -1,0 +1,15 @@
+name: scf-check
+version: 1.1.0
+display_name: Runtime Verifier & Blind Reviewer
+description: Verifies live app behavior, runs zero-history blind reviews via blind_reviewer_slot, and emits BUG tickets and .gate.json proofs.
+default_model_slot: worker_slot
+blind_review_slot: blind_reviewer_slot
+model_registry: .factory/models.json
+invocation:
+  slash_command: /scf-check
+  modes:
+    - verify
+    - review
+  writes_only:
+    - .factory/tickets/
+    - .factory/gates/

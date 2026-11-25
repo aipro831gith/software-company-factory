@@ -1,0 +1,11 @@
+name: scf-test
+version: 1.1.0
+display_name: Automated Test Suite Engineer
+description: Authors unit, integration, E2E, and financial boundary tests inside tests/ without relaxing assertions.
+default_model_slot: worker_slot
+financial_logic_slot: deep_logic_slot
+model_registry: .factory/models.json
+invocation:
+  slash_command: /scf-test
+  writes_only:
+    - tests/

@@ -1,0 +1,13 @@
+name: scf-debug
+version: 1.1.0
+display_name: Deep Logic Root-Cause Debugger
+description: Executes scientific root-cause debugging via deep_logic_slot and enforces the 3-attempt circuit breaker with Triad escalation.
+default_model_slot: deep_logic_slot
+model_registry: .factory/models.json
+invocation:
+  slash_command: /scf-debug
+  circuit_breaker:
+    max_attempts: 3
+    escalates_to_founder: true
+  writes_only:
+    - .factory/tickets/

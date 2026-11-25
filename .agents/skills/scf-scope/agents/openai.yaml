@@ -1,0 +1,12 @@
+name: scf-scope
+version: 1.1.0
+display_name: Feature Slicer & Tier Dial
+description: Slices product roadmaps into vertical features and assigns Vibe, Lean, Medium, or Full workflow tiers.
+default_model_slot: architect_slot
+model_registry: .factory/models.json
+invocation:
+  slash_command: /scf-scope
+  writes_only:
+    - docs/scope/
+  handoff_to:
+    - /scf-architect

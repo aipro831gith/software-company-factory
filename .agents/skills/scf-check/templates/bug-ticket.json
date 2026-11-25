@@ -1,0 +1,14 @@
+{
+  "ticket_id": "BUG-001",
+  "severity": "BLOCKER",
+  "owner_agent": "backend",
+  "exact_file": "src/services/billing/gstCalculator.ts",
+  "exact_line": 1,
+  "failing_command": "npm test -- gstCalculator.test.ts",
+  "expected": "Deterministic integer paise output matching Spec 0002",
+  "actual": "Describe exact runtime failure or hook violation output",
+  "attempt_count": 1,
+  "max_attempts": 3,
+  "status": "OPEN",
+  "created_at": "2026-11-25T00:00:00+05:30"
+}

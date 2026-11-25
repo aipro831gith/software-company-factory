@@ -1,0 +1,14 @@
+name: software-company-factory-start
+version: 1.1.0
+display_name: Factory Session Start
+description: Safely boots software-company-factory with department isolation, Windows health checks, and project memory restoration.
+default_model_slot: light_ops_slot
+model_registry: .factory/models.json
+invocation:
+  slash_command: /software-company-factory-start
+  aliases:
+    - /scf-start
+  automatic_mode: true
+isolation:
+  lock_file: .factory/session.lock.json
+  department: software-company-factory

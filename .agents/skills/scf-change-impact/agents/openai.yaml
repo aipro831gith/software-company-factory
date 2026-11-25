@@ -1,0 +1,11 @@
+name: scf-change-impact
+version: 1.1.0
+display_name: Change Impact Analyzer
+description: Executes 7-step ripple-effect analysis across DB, API, UI, specs, and tests before mid-project changes.
+default_model_slot: architect_slot
+escalation_slot: deep_logic_slot
+model_registry: .factory/models.json
+invocation:
+  slash_command: /scf-change-impact
+  writes_only:
+    - docs/scope/

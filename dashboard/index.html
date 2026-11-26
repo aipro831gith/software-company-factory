@@ -90,13 +90,10 @@
 
         <div class="card">
           <div class="section-head">
-            <h2>Live Board Stream (`.factory/board/messages.jsonl`)</h2>
+            <h2>Live Agent Board Feed (Read-Only — Synced from <code>.factory/board/messages.jsonl</code>)</h2>
             <span class="pill" id="board-count">0 events</span>
           </div>
-          <div style="display:flex;gap:8px;margin-bottom:10px;">
-            <input id="boss-note-input" class="input" style="flex:1;min-width:0;" type="text" placeholder="Post a note or Boss approval to live board..." />
-            <button id="boss-note-btn" class="btn primary" type="button">Send</button>
-          </div>
+          <div class="kpi-meta" style="margin-bottom:10px;">Chat &amp; commands run in Google Antigravity 2.0; this dashboard shows live verified progress, agent status, and real gatekeeper exit codes.</div>
           <div id="overview-feed" class="feed-list"></div>
         </div>
       </div>
@@ -478,18 +475,6 @@
     document.getElementById('refresh-btn').addEventListener('click', async () => {
       const res = await fetch('/api/state');
       render(await res.json());
-    });
-
-    document.getElementById('boss-note-btn').addEventListener('click', async () => {
-      const inp = document.getElementById('boss-note-input');
-      const text = inp.value.trim();
-      if (!text) return;
-      await fetch('/api/board', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: 'founder', event: 'BOSS_NOTE', detail: text }),
-      });
-      inp.value = '';
     });
 
     document.getElementById('agent-search').addEventListener('input', renderAgents);

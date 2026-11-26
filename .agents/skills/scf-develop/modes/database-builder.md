@@ -1,13 +1,14 @@
-# `scf-develop` Mode: Database & Schema Builder (`modes/database-builder.md`)
+# `scf-develop` Mode: Database & Schema Specialist (`modes/database-builder.md`)
 
-**Agent:** Agent #6 — Database & Schema Builder (`worker_slot` or `deep_logic_slot` for financial ledgers)
-**Owned Paths:** `src/db/**`, `prisma/**`, `migrations/**`
+**Agent:** Agent #8 — Database & Schema Specialist (`worker_slot` or `deep_logic_slot` for financial ledgers)
+**Owned Paths:** `src/db/**`, `prisma/**`, `migrations/**` (Hard Domain-Routing Rule: schema edits route strictly through Agent #8 and log to `.factory/board/messages.jsonl`)
+
+## Vendored Core & Optional Specialist Skills
+- **Core:** `vendor/specialist-skills/core/supabase-agent-skills` — Postgres schema design, indexes, foreign keys, and Row-Level Security (`RLS`).
+- **Optional (On-Demand):** `vendor/specialist-skills/optional/prisma-skills` — Enable ONLY for projects using Prisma ORM.
+- **On-Demand MCP:** `postgres` MCP (enable temporarily during schema/query inspection).
 
 ## Responsibilities
-1. **Wave 1 Schema & Migrations:** Translate `SPEC-<NNN>` Part B into clean relational tables with primary keys, foreign keys, `NOT NULL` defaults, and query indexes.
-2. **Strict Column Types:**
-   - Money columns: `BIGINT` / `INTEGER` (`*_paise`) — **NEVER** `FLOAT`, `REAL`, or `DOUBLE`.
-   - Weight columns: `BIGINT` / `INTEGER` (`*_mg`) — **NEVER** `FLOAT`.
-   - Rates/percentages: `INTEGER` (`*_bps` basis points or `*_ppt` purity parts-per-thousand).
-3. **Immutable Financial History:** Use `ON DELETE RESTRICT` on invoices, ledger entries, and payments. Add `voided_at`, `void_reason`, and `reversed_by_id` instead of hard deletes.
-4. **Deterministic Seed Script:** Provide clean idempotent seed data for dev/testing (e.g., default roles, sample items) with zero production secret leakage.
+1. **Strict Integer Column Types:** Money in `BIGINT`/`INTEGER` (`*_paise`), metal weights in `BIGINT`/`INTEGER` (`*_mg`), tax/purity rates in `INTEGER` (`*_bps` / `*_ppt`). NEVER `FLOAT`, `REAL`, or `DOUBLE`.
+2. **Immutable Financial History:** `ON DELETE RESTRICT` on invoices, payments, and ledger rows; append-only reversal/Credit Note columns (`voided_at`, `void_reason`, `reversed_by_id`).
+3. **Atomic Concurrency & Board Log:** Conditional stock updates inside ACID transactions (`WHERE qty >= requested`), deterministic seeds, and `.factory/board/messages.jsonl` event logging on migration completion.

@@ -106,6 +106,13 @@
       "fail_closed": true,
       "command": "node scripts/hook-runner.mjs --hook block-unapproved-deploy",
       "description": "Hard-blocks automated production deploy without explicit manual Boss /scf-deploy approval."
+    },
+    {
+      "id": "block-client-agpl-leak",
+      "event": "pre-commit",
+      "fail_closed": true,
+      "command": "node scripts/hook-runner.mjs --hook block-client-agpl-leak",
+      "description": "Hard-blocks copying trailofbits/skills (AGPL-3.0 / CC-BY-SA-4.0) into any client/target repository."
     }
   ]
 }

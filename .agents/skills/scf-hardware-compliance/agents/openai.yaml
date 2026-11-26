@@ -1,6 +1,8 @@
 name: scf-hardware-compliance
-version: 1.1.0
-display_name: Dormant Hardware & IoT Compliance
+version: 2.0.0
+agent_id: 15
+agent_role: Hardware & IoT Compliance Specialist
+display_name: Hardware & IoT Compliance Specialist
 description: Dormant zero-overhead plug-in activated only for projects with weighing scales, printers, POS hardware, or IoT firmware.
 default_model_slot: deep_logic_slot
 model_registry: .factory/models.json
@@ -8,3 +10,7 @@ invocation:
   slash_command: /scf-hardware-compliance
   optional_plugin: true
   dormant_by_default: true
+  triggers:
+    - weighing_scale_serial_usb
+    - thermal_barcode_printer
+    - rfid_pos_iot_firmware

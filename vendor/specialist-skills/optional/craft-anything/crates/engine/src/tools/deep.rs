@@ -1,0 +1,1562 @@
+//! The Deep-mode hook the native tools consult.
+//!
+//! When the session is **not** clean-room (Deep mode is on) and Ghidra is installed, the native
+//! decompile path prefers Ghidra's result through the *same* tool id (`native_function_pseudocode`),
+//! recording `environment.engine = "ghidra"` and a higher confidence. When Deep mode is off, or
+//! Ghidra is absent, or anything about the bridge fails, this returns `None` and the caller falls
+//! back to the built-in clean-room lifter — the clean-room path is never changed.
+//!
+//! The Ghidra session is launched lazily on first use and cached on the target, keyed by the
+//! target's content and an analysis settings hash. A launch that fails is remembered so we don't
+//! retry it on every call.
+
+use crate::settings::Settings;
+use crate::tool::{Ctx, ToolOutput};
+use crate::workspace::MANIFEST;
+use craft_anything_engines::ghidra::{self, DeepDecompiler, DeepFunction};
+use craft_anything_evidence::{Confidence, Environment, ErrorCode, EvidenceBuilder, Limitation, Location, ToolError, host_triple};
+use craft_anything_platform::sync::Mutex;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, PoisonError};
+use std::time::Duration;
+
+/// The analysis settings hash for the default Deep profile. Part of the project cache key, so a
+/// different pinned language re-analyses rather than reusing the auto-detected project.
+fn settings_hash(language_id: Option<&str>) -> String {
+    let seed = format!("craft-anything-ghidra-fast-profile-v2|lang={}", language_id.unwrap_or(""));
+    craft_anything_evidence::sha256_hex(seed.as_bytes())
+}
+
+/// A per-target Ghidra language override set by `core_target_open` (wins over the global setting).
+pub struct LanguageOverride(pub String);
+
+/// Cached decision for one target: a live provider, or why there isn't one.
+struct DeepSlot {
+    provider: Result<Arc<dyn DeepDecompiler>, NotUsed>,
+}
+
+/// Why Deep mode's engine gave no answer, as a typed, machine-readable reason (#2209). Serialized
+/// in snake case under `deep_engine_unavailable.reason` in a fallback's result and error details.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Unavailable {
+    /// Deep mode is on but Ghidra isn't installed.
+    NotInstalled,
+    /// The program's bytes aren't loaded, so there was nothing to give Ghidra.
+    NoBytes,
+    /// Ghidra was stopped before it was ready.
+    Stopped,
+    /// Ghidra couldn't import the program or its headless analyzer didn't start.
+    OpenFailed,
+    /// Ghidra opened the program but has no function at this address and couldn't make one.
+    NoFunction,
+    /// Ghidra answered with no pseudo-C for the function.
+    NoAnswer,
+    /// Ghidra opened the program but decompiling this function failed.
+    DecompileFailed,
+}
+
+impl Unavailable {
+    /// A few plain words for the engine label of a fallback answer.
+    pub fn short(self) -> &'static str {
+        match self {
+            Unavailable::NotInstalled => "Ghidra isn't installed",
+            Unavailable::NoBytes => "the program's bytes aren't loaded",
+            Unavailable::Stopped => "Ghidra was stopped",
+            Unavailable::OpenFailed => "Ghidra couldn't open this program",
+            Unavailable::NoFunction => "Ghidra has no function here",
+            Unavailable::NoAnswer => "Ghidra had no answer",
+            Unavailable::DecompileFailed => "Ghidra couldn't decompile this function",
+        }
+    }
+
+    /// Whether Ghidra itself failed (rather than answering that there is no function there).
+    pub fn is_failure(self) -> bool {
+        !matches!(self, Unavailable::NoFunction | Unavailable::NoAnswer)
+    }
+
+    /// The error code for a request that only Ghidra could have answered.
+    pub fn error_code(self) -> ErrorCode {
+        match self {
+            Unavailable::NotInstalled | Unavailable::OpenFailed => ErrorCode::EngineMissing,
+            Unavailable::NoBytes => ErrorCode::FeatureMissing,
+            Unavailable::Stopped => ErrorCode::Cancelled,
+            Unavailable::DecompileFailed => ErrorCode::ProgramFailed,
+            Unavailable::NoFunction | Unavailable::NoAnswer => ErrorCode::NotFound,
+        }
+    }
+}
+
+/// Deep mode was asked for and Ghidra wasn't used: the typed reason and what to say about it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NotUsed {
+    pub reason: Unavailable,
+    /// Says only why Ghidra wasn't used; the caller adds what it did instead.
+    pub message: String,
+}
+
+impl NotUsed {
+    fn new(reason: Unavailable, message: impl Into<String>) -> Self {
+        NotUsed { reason, message: message.into() }
+    }
+
+    /// The limitation and result field code, the same everywhere a Deep request falls back.
+    pub const CODE: &'static str = "deep_engine_unavailable";
+
+    /// The engine label of an answer the built-in lifter gave instead of Ghidra.
+    pub fn engine_label(&self) -> String {
+        format!("clean-room lifter (Deep mode fallback: {})", self.reason.short())
+    }
+
+    /// The machine-readable record of the fallback, for results and error details.
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({"requested": true, "engine": "ghidra", "reason": self.reason, "message": self.message})
+    }
+}
+
+#[cfg(test)]
+struct TestProviderStart {
+    result: Result<Arc<dyn DeepDecompiler>, Option<NotUsed>>,
+    delay: Duration,
+    calls: AtomicUsize,
+}
+
+/// How long Ghidra's one-time analysis of a target may take by default: a big game can take hours,
+/// and it's saved, so later sessions open it in moments.
+const ANALYSIS_LIMIT_SECS: u64 = 8 * 3600;
+
+/// Why Ghidra wasn't used, as said to the builder. These say only that; the caller adds what it did
+/// instead (the built-in decompiler's answer, or that no function was found).
+/// Deep mode is on but Ghidra isn't installed.
+pub const NOT_INSTALLED: &str = "Deep mode is on, but Ghidra isn't installed. The person can get Ghidra from Settings → Engines.";
+/// The person stopped Ghidra's analysis for this project.
+pub const STOPPED_NOTE: &str = "The person stopped Ghidra's analysis for this project; a new request starts it again.";
+
+/// Get (or lazily create) the deep provider for the active target. `Err(Some(why))`: Deep mode is
+/// on but Ghidra can't be used; `Err(None)`: Clean room (never launches). Either way the caller
+/// uses the built-in engine.
+pub(super) fn provider_for_active(ctx: &mut Ctx<'_>) -> Result<Arc<dyn DeepDecompiler>, Option<NotUsed>> {
+    if ctx.session.clean_room() {
+        return Err(None);
+    }
+    // Stopped for this workspace's builds (its investigation is `<workspace>/investigation.cany`):
+    // a decompile mustn't start the analysis again (#1118 review), nor use a Ghidra opened before
+    // the stop. Not remembered: a new request lets the next call use Ghidra.
+    let workspace = ctx.session.project.as_ref().and_then(|p| p.root.parent()).map(Path::to_path_buf);
+    if workspace.as_deref().is_some_and(stopped) {
+        // A Ghidra already open for this target ends too: its process goes with the last handle
+        // (a decompile still running holds one until it returns).
+        if let Ok(t) = ctx.session.active_mut() {
+            t.ext.remove::<DeepSlot>();
+        }
+        return Err(Some(NotUsed::new(Unavailable::Stopped, STOPPED_NOTE)));
+    }
+    // Already decided for this target?
+    if let Ok(t) = ctx.session.active()
+        && let Some(slot) = t.ext.get::<DeepSlot>()
+    {
+        return slot.provider.clone().map_err(Some);
+    }
+
+    // A target-local startup fixture leaves the real slot reuse and bridge invalidation in
+    // place. An unavailable installation is not remembered here, matching config's fallback.
+    #[cfg(test)]
+    if let Some(start) = ctx.session.active().ok().and_then(|t| t.ext.get::<TestProviderStart>()) {
+        start.calls.fetch_add(1, Ordering::SeqCst);
+        std::thread::sleep(start.delay);
+        let provider = start.result.clone()?;
+        return remember(ctx, Ok(provider));
+    }
+
+    // The target's bytes and identity.
+    let (bytes, sha256) = match ctx.session.active() {
+        Ok(t) => (t.target.bytes.clone(), t.target.sha256.clone()),
+        Err(_) => return Err(None),
+    };
+    if bytes.is_empty() {
+        return remember(ctx, Err(NotUsed::new(Unavailable::NoBytes, "Ghidra needs the program's bytes, which aren't loaded.")));
+    }
+
+    // A per-target language override (from core_target_open) wins over the global setting.
+    let language = ctx.session.active().ok().and_then(|t| t.ext.get::<LanguageOverride>().map(|o| o.0.clone()));
+    // Not remembered: once the person installs Ghidra, the next call uses it.
+    let Some((cfg, digest)) = config(&ctx.session.settings, language) else {
+        return Err(Some(NotUsed::new(Unavailable::NotInstalled, NOT_INSTALLED)));
+    };
+    let cancel = ctx.cancel.clone();
+    let cancel_fn = move || cancel.is_cancelled() || workspace.as_deref().is_some_and(stopped);
+    let progress = ctx.progress;
+    let report = |f: f32, m: &str| (progress)(crate::tool::Progress { fraction: Some(f), message: m.to_string() });
+
+    match ghidra::Session::start(&cfg, bytes.as_ref(), &sha256, &digest, &cancel_fn, &report) {
+        Ok(session) => remember(ctx, Ok(Arc::new(session))),
+        // Stopped by the caller: try again next time rather than remembering a failure.
+        Err(ghidra::GhidraError::Cancelled) => Err(Some(NotUsed::new(Unavailable::Stopped, "Ghidra was stopped before it was ready."))),
+        Err(e) => {
+            log::warn!("Deep mode (Ghidra) unavailable; using the built-in engine: {e}");
+            remember(ctx, Err(NotUsed::new(Unavailable::OpenFailed, format!("Ghidra couldn't open this program ({e})."))))
+        }
+    }
+}
+
+/// Ghidra's settings for a target (and its analysis settings hash), the same for the app and the
+/// builder's tool server so both find one shared analysis. `None`: Ghidra isn't installed.
+fn config(settings: &Settings, language_override: Option<String>) -> Option<(ghidra::Config, String)> {
+    let g = &settings.engines.ghidra;
+    let language_id = language_override.or_else(|| g.language_id.clone());
+    let digest = settings_hash(language_id.as_deref());
+    let cfg = ghidra::Config {
+        analyze_headless: settings.ghidra_launcher()?,
+        java_home: settings.ghidra_java(),
+        startup_timeout: Duration::from_secs(g.startup_timeout_secs.unwrap_or(ANALYSIS_LIMIT_SECS)),
+        store_dir: settings.engine_store_dir(),
+        language_id,
+        compiler_spec: g.compiler_spec.clone(),
+        memory_gb: g.memory_gb,
+    };
+    Some((cfg, digest))
+}
+
+/// Analyse a program with Ghidra ahead of time (Deep mode), so the builder's first decompile opens
+/// a saved analysis instead of waiting hours for one. Shares the analysis with any other process
+/// doing the same. `progress` gets a line now and then. It stops early once `project`, the
+/// workspace whose build asked, is deleted or stops it ([`stop_for`]) (#948).
+pub fn prepare(settings: &Settings, bytes: &[u8], sha256: &str, project: &Path, progress: &(dyn Fn(&str) + Send + Sync)) -> Result<(), String> {
+    let (cfg, digest) = config(settings, None).ok_or_else(|| NOT_INSTALLED.to_string())?;
+    let asked = Asked::new(project);
+    let record = project.join(MANIFEST);
+    let closing = || {
+        CLOSING.load(Ordering::SeqCst)
+            // Only a record known to be gone: a drive that can't be read for a moment isn't a delete.
+            || matches!(record.try_exists(), Ok(false))
+            || stopped(project)
+    };
+    let result = ghidra::analyse(&cfg, bytes, sha256, &digest, &closing, &|_, m: &str| progress(m)).map(|_| ()).map_err(|e| e.to_string());
+    drop(asked);
+    result
+}
+
+/// A file in a project's folder: Ghidra's analysis was stopped for its builds, and stays off for
+/// them (the builder's tool server too) until a new request ([`resume`]), a note added to a
+/// running build included. It holds a [`StopRecord`].
+pub const STOPPED: &str = crate::workspace::GHIDRA_STOPPED;
+
+/// What [`STOPPED`] holds (`docs/schemas/ghidra-stopped.schema.json`). A file from before it had
+/// a version is the bare number of nanoseconds, read as version 0.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct StopRecord {
+    pub version: u32,
+    /// When the person stopped it, in nanoseconds since 1970: a request made before then doesn't
+    /// undo it ([`resume_for`]).
+    pub stopped_at_ns: u64,
+}
+
+/// The current [`StopRecord`] version.
+pub const STOP_VERSION: u32 = 1;
+
+/// The JSON Schema of [`StopRecord`], published by `cargo xtask schemas`.
+pub fn stop_schema() -> String {
+    let schema = schemars::generate::SchemaSettings::draft2020_12().into_generator().into_root_schema_for::<StopRecord>();
+    serde_json::to_string_pretty(&schema).map(|s| s + "\n").unwrap_or_default()
+}
+
+/// When a stop file says Ghidra was stopped; None when it says nothing readable.
+fn stopped_at(text: &str) -> Option<u128> {
+    match serde_json::from_str::<StopRecord>(text) {
+        Ok(r) => Some(r.stopped_at_ns.into()),
+        Err(_) => text.trim().parse().ok(),
+    }
+}
+
+/// Whether Ghidra was stopped for `project`'s builds.
+pub fn stopped(project: &Path) -> bool {
+    project.join(STOPPED).is_file()
+}
+
+/// Stop Ghidra for `project`'s builds: the analyses its builds asked [`prepare`] for end at their
+/// next check (within 2 s), and its decompiles use the built-in engine until a new request.
+/// Whether this process had one under way.
+pub fn stop_for(project: &Path) -> Result<bool, ToolError> {
+    if !project.join(MANIFEST).is_file() {
+        return Err(ToolError::invalid(format!("{} isn't a project folder (it has no {MANIFEST}).", project.display())));
+    }
+    // When it was stopped, so a request made before it doesn't start Ghidra again ([`resume_for`]).
+    let _lock = marker_lock(project, true).map_err(|e| ToolError::io(project.display(), e))?;
+    let at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let record = StopRecord { version: STOP_VERSION, stopped_at_ns: u64::try_from(at).unwrap_or(u64::MAX) };
+    let bytes = serde_json::to_vec(&record).map_err(|e| ToolError::internal(e.to_string()))?;
+    craft_anything_platform::fs::write_atomic(&project.join(STOPPED), &bytes)?;
+    let mut asked = PREPARING.lock().unwrap_or_else(PoisonError::into_inner);
+    let before = asked.len();
+    asked.retain(|(_, p)| p != project);
+    Ok(asked.len() != before)
+}
+
+/// A new request for `project`, made now: Ghidra may be used for its builds again.
+pub fn resume(project: &Path) -> std::io::Result<()> {
+    resume_for(project, std::time::SystemTime::now())
+}
+
+/// A request the person made at `asked` for `project`: Ghidra may be used again, unless they
+/// stopped it after making it (a note left waiting while they pressed Stop). A stop with no time
+/// (an older version's) is cleared.
+pub fn resume_for(project: &Path, asked: std::time::SystemTime) -> std::io::Result<()> {
+    let at = asked.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let marker = project.join(STOPPED);
+    // Judged in place under the lock: the stop stays visible to `stopped` the whole time, and a stop
+    // or another resume (from any process) waits for this one instead of interleaving with it. No
+    // lock file: never stopped, and a stop creates it before taking its time, so any stop to come
+    // is later than this request.
+    let _lock = match marker_lock(project, false) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        r => r?,
+    };
+    let when = match std::fs::read_to_string(&marker) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        r => Some(stopped_at(&r?)),
+    };
+    if when.is_some_and(|s| s.is_some_and(|s| s > at)) {
+        return Ok(());
+    }
+    match std::fs::remove_file(&marker) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e),
+        _ => {}
+    }
+    // No stop left, so the lock isn't needed: one that waits on this file sees it gone and takes a
+    // new one ([`marker_lock`]). Removed while held, so no stop slips in between.
+    let _ = std::fs::remove_file(project.join(STOP_LOCK));
+    Ok(())
+}
+
+/// The lock file beside [`STOPPED`], there only while a stop is.
+pub const STOP_LOCK: &str = crate::workspace::GHIDRA_STOP_LOCK;
+
+/// How long a stop or a request waits for the other to finish with the marker.
+const LOCK_WAIT: Duration = Duration::from_secs(2);
+
+/// [`marker_lock`]'s hold on the lock file. Unlocked when dropped rather than left to the file
+/// closing, since a program started meanwhile may hold a copy of the handle.
+struct StopLock(std::fs::File);
+
+impl Drop for StopLock {
+    fn drop(&mut self) {
+        let _ = self.0.unlock();
+    }
+}
+
+/// Held while the stop marker is written or judged ([`stop_for`], [`resume_for`]). Holders touch
+/// one small file, and the system frees a lock whose process ended, so a short wait is enough.
+/// `create` false: no lock file means no stop (NotFound).
+fn marker_lock(project: &Path, create: bool) -> std::io::Result<StopLock> {
+    let path = project.join(STOP_LOCK);
+    let started = std::time::Instant::now();
+    let busy = || std::io::Error::new(std::io::ErrorKind::TimedOut, format!("{} is held by another program", path.display()));
+    loop {
+        let file = std::fs::OpenOptions::new().read(true).write(true).create(create).truncate(false).open(&path)?;
+        loop {
+            match file.try_lock() {
+                Ok(()) => break,
+                Err(std::fs::TryLockError::WouldBlock) if started.elapsed() < LOCK_WAIT => std::thread::sleep(Duration::from_millis(5)),
+                Err(std::fs::TryLockError::WouldBlock) => return Err(busy()),
+                Err(std::fs::TryLockError::Error(e)) => return Err(e),
+            }
+        }
+        let lock = StopLock(file);
+        // shortcut: only checks the path is there, not that it's the same file; a stop and a
+        // request racing a removal could each lock one. Compare file ids if that ever shows.
+        if path.is_file() {
+            return Ok(lock);
+        }
+        if started.elapsed() >= LOCK_WAIT {
+            return Err(busy());
+        }
+    }
+}
+
+/// Whether Ghidra is analysing a program for `project`'s build in this process, and wasn't
+/// stopped. Reads memory only, so a screen can ask while drawing.
+pub fn analysing_for(project: &Path) -> bool {
+    PREPARING.lock().unwrap_or_else(PoisonError::into_inner).iter().any(|(_, p)| p == project)
+}
+
+/// One [`prepare`] under way, counted while it lives.
+struct Asked(u64);
+
+impl Asked {
+    fn new(project: &Path) -> Self {
+        let id = NEXT_ASKED.fetch_add(1, Ordering::SeqCst);
+        PREPARING.lock().unwrap_or_else(PoisonError::into_inner).push((id, project.to_path_buf()));
+        ANALYSING.fetch_add(1, Ordering::SeqCst);
+        Asked(id)
+    }
+}
+
+impl Drop for Asked {
+    fn drop(&mut self) {
+        PREPARING.lock().unwrap_or_else(PoisonError::into_inner).retain(|(id, _)| *id != self.0);
+        ANALYSING.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+/// Analyses [`prepare`] has under way, and whether they are being stopped.
+static ANALYSING: AtomicUsize = AtomicUsize::new(0);
+static CLOSING: AtomicBool = AtomicBool::new(false);
+/// Each [`prepare`] under way and the project that asked, until [`stop_for`] takes it out.
+static PREPARING: Mutex<Vec<(u64, PathBuf)>> = Mutex::new(Vec::new());
+static NEXT_ASKED: AtomicU64 = AtomicU64::new(0);
+
+/// The app is closing: stop every analysis [`prepare`] started and wait up to `within` for them to
+/// end, as nothing acts on a process's drop once the app has gone (#946).
+pub fn stop_analyses(within: Duration) {
+    if ANALYSING.load(Ordering::SeqCst) == 0 {
+        return;
+    }
+    CLOSING.store(true, Ordering::SeqCst);
+    let until = std::time::Instant::now() + within;
+    while ANALYSING.load(Ordering::SeqCst) > 0 && std::time::Instant::now() < until {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    CLOSING.store(false, Ordering::SeqCst);
+}
+
+fn remember(ctx: &mut Ctx<'_>, provider: Result<Arc<dyn DeepDecompiler>, NotUsed>) -> Result<Arc<dyn DeepDecompiler>, Option<NotUsed>> {
+    if let Ok(t) = ctx.session.active_mut() {
+        t.ext.insert(Arc::new(DeepSlot { provider: provider.clone() }));
+    }
+    provider.map_err(Some)
+}
+
+/// An address for the deep engine, and whose address space it is in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum At {
+    /// The built-in engine's, as every other tool reports it.
+    Ours(u64),
+    /// Already Ghidra's: the address in a name Ghidra made (`FUN_00101160`).
+    Engine(u64),
+}
+
+/// Decompile the function at `at` with the deep engine if available. `our_base` is the image
+/// base the built-in engine reads the program at; Ghidra may have loaded it elsewhere (a
+/// position-independent ELF goes to 0x100000), so addresses are moved between the two.
+/// `Err(why)` → the caller uses the built-in lifter and passes on why Ghidra wasn't used (`None`
+/// in Clean room), with a typed reason to put on its answer. `Ok(Err(..))` only for a cancellation the caller should surface.
+pub fn pseudo_code(ctx: &mut Ctx<'_>, at: At, our_base: u64, params: serde_json::Value) -> Result<Result<ToolOutput, ToolError>, Option<NotUsed>> {
+    let provider = provider_for_active(ctx)?;
+    let rebase = ghidra::Rebase::new(our_base, provider.image_base());
+    let entry = match at {
+        At::Ours(a) => rebase.to_engine(a),
+        At::Engine(a) => a,
+    };
+    // Said while it waits: as the tool's progress, and in the project's inbox for the app's feed,
+    // which the progress doesn't reach when a coding agent runs this tool (#1714).
+    let progress = ctx.progress;
+    let activity = ctx.session.ext.get::<crate::inbox::InboxDir>().map(|d| crate::inbox::Activity::start(&d.0));
+    let waiting = |line: &str| {
+        progress(crate::tool::Progress { fraction: None, message: line.to_string() });
+        if let Some(a) = &activity {
+            a.say(line);
+        }
+    };
+    let cancel = ctx.cancel.clone();
+    match provider.decompile(entry, &|| cancel.is_cancelled(), &waiting) {
+        Ok(Some(df)) => {
+            let renames = user_renames(ctx, rebase);
+            Ok(build_evidence(ctx, provider.as_ref(), df, rebase, &renames, params))
+        }
+        Ok(None) => Err(Some(NotUsed::new(Unavailable::NoAnswer, "Ghidra had no answer for this function."))),
+        Err(ghidra::GhidraError::Cancelled) => Ok(Err(ToolError::cancelled())),
+        Err(e) => {
+            log::warn!("Ghidra decompile failed; falling back to the built-in engine: {e}");
+            // A dead bridge (Ghidra crashed or was killed) is started again on the next call; the
+            // saved analysis makes that quick.
+            if matches!(e, ghidra::GhidraError::Connection(_) | ghidra::GhidraError::Protocol(_))
+                && let Ok(t) = ctx.session.active_mut()
+            {
+                t.ext.remove::<DeepSlot>();
+            }
+            Err(Some(match e {
+                // The bridge looks up the function containing the address and, when its analysis
+                // has none, tries to make one there; the message says why it couldn't.
+                ghidra::GhidraError::Bridge { ref code, ref message } if code == "not_found" => {
+                    NotUsed::new(Unavailable::NoFunction, format!("Ghidra's analysis has no function at this address and it couldn't make one: {message}."))
+                }
+                e => NotUsed::new(Unavailable::DecompileFailed, format!("Ghidra couldn't decompile this function ({e}).")),
+            }))
+        }
+    }
+}
+
+/// A name Ghidra may use → the person's name for it, and the address (ours) they named.
+type Renames = HashMap<String, (String, u64)>;
+
+/// For each address the person named, the names Ghidra may give it, each with the person's name:
+/// the ones Ghidra makes from its own address (`FUN_00101160`, `DAT_…`, `LAB_…`) and the program's
+/// own symbol, which Ghidra uses too. Our made-up `sub_…` names are left out; Ghidra never uses them.
+fn user_renames(ctx: &mut Ctx<'_>, rebase: ghidra::Rebase) -> Renames {
+    let mut out = Renames::new();
+    let Ok(st) = super::native_common::native(ctx) else { return out };
+    let Ok(t) = ctx.session.active() else { return out };
+    for (&a, name) in &t.annotations.names {
+        let theirs = rebase.to_engine(a);
+        for prefix in ["FUN", "DAT", "LAB"] {
+            out.entry(format!("{prefix}_{theirs:08x}")).or_insert_with(|| (name.clone(), a));
+        }
+        if let Some(symbol) = st.prog.name_at(a).filter(|n| n != name && !n.starts_with("sub_")) {
+            out.entry(symbol).or_insert_with(|| (name.clone(), a));
+        }
+    }
+    out
+}
+
+/// A piece of C text: an identifier, or anything else kept as it is (spaces, punctuation, numbers,
+/// a whole comment, a whole string or character literal).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Piece<'a> {
+    Word(&'a str),
+    Text(&'a str),
+}
+
+/// Split C text into [`Piece`]s. A comment (`//…`, `/*…*/`) or a literal is one piece of text, so
+/// nothing inside it is renamed and a quote inside a comment doesn't start a literal.
+fn c_pieces(code: &str) -> Vec<Piece<'_>> {
+    let b = code.as_bytes();
+    let len = b.len();
+    let at = |i: usize| b.get(i).copied();
+    let ident = |c: Option<u8>| c.is_some_and(|c| c.is_ascii_alphanumeric() || c == b'_');
+    let mut out = Vec::new();
+    // Pieces end only at ASCII bytes, so every slice below is on a character boundary.
+    fn push<'a>(out: &mut Vec<Piece<'a>>, code: &'a str, from: usize, to: usize, word: bool) {
+        if let Some(s) = code.get(from..to).filter(|s| !s.is_empty()) {
+            out.push(if word { Piece::Word(s) } else { Piece::Text(s) });
+        }
+    }
+    let (mut i, mut text_from) = (0usize, 0usize);
+    while i < len {
+        let c = at(i);
+        let next = at(i + 1);
+        i = if c == Some(b'/') && next == Some(b'/') {
+            (i + 2..len).find(|&j| at(j) == Some(b'\n')).unwrap_or(len)
+        } else if c == Some(b'/') && next == Some(b'*') {
+            (i + 2..len).find(|&j| at(j) == Some(b'*') && at(j + 1) == Some(b'/')).map_or(len, |j| j + 2)
+        } else if c == Some(b'"') || c == Some(b'\'') {
+            let mut j = i + 1;
+            while j < len && at(j) != c {
+                j += if at(j) == Some(b'\\') { 2 } else { 1 };
+            }
+            (j + 1).min(len)
+        } else if c.is_some_and(|c| c.is_ascii_alphabetic() || c == b'_') {
+            let end = (i..len).find(|&j| !ident(at(j))).unwrap_or(len);
+            push(&mut out, code, text_from, i, false);
+            push(&mut out, code, i, end, true);
+            text_from = end;
+            end
+        } else if ident(c) {
+            // A number: its digits and suffix (0x401140, 10UL) are text, not a name.
+            (i..len).find(|&j| !ident(at(j))).unwrap_or(len)
+        } else {
+            i + 1
+        };
+    }
+    push(&mut out, code, text_from, len, false);
+    out
+}
+
+/// `code` with every whole identifier that is a key of `renames` replaced by its value
+/// (`check_key` is replaced; `check_key_v2`, `my_check_key`, a struct field `obj->check_key` or
+/// `s.check_key`, a qualified `A::check_key`, comments and the text of a string or character literal aren't).
+fn rename_identifiers(code: &str, renames: &HashMap<String, String>) -> String {
+    if renames.is_empty() {
+        return code.to_string();
+    }
+    let mut out = String::with_capacity(code.len());
+    // Whether the last text before a name ends in `.`, `->` or `::`: the name is then a field or
+    // a member of a namespace or class, not the program-wide name being renamed.
+    let mut field = false;
+    for p in c_pieces(code) {
+        match p {
+            Piece::Word(w) => {
+                out.push_str(if field { w } else { renames.get(w).map_or(w, String::as_str) });
+                field = false;
+            }
+            Piece::Text(t) => {
+                let end = t.trim_end();
+                field = if end.is_empty() { field } else { end.ends_with('.') || end.ends_with("->") || end.ends_with("::") };
+                out.push_str(t);
+            }
+        }
+    }
+    out
+}
+
+/// Whether `s` can stand in C code as a name: letters, digits and `_`, not starting with a digit,
+/// and not a C keyword.
+fn is_c_name(s: &str) -> bool {
+    const KEYWORDS: &[&str] = &[
+        "auto", "bool", "break", "case", "char", "const", "continue", "default", "do", "double", "else", "enum", "extern", "false", "float", "for", "goto",
+        "if", "inline", "int", "long", "register", "restrict", "return", "short", "signed", "sizeof", "static", "struct", "switch", "true", "typedef", "union",
+        "unsigned", "void", "volatile", "while",
+    ];
+    s.bytes().next().is_some_and(|c| c.is_ascii_alphabetic() || c == b'_')
+        && s.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_')
+        && !KEYWORDS.contains(&s)
+}
+
+/// The renames that can go into this code, and the person's names that can't: one that isn't a C
+/// name (`handle // note` would turn the rest of a line into a comment), one that another name in
+/// the code already is, or one the person gave two addresses that both appear here (each would
+/// then name two things). Only names that appear are considered.
+fn renames_for_code(texts: &[&str], renames: &Renames) -> (HashMap<String, String>, Vec<String>) {
+    let words: std::collections::HashSet<&str> = texts
+        .iter()
+        .flat_map(|t| c_pieces(t))
+        .filter_map(|p| match p {
+            Piece::Word(w) => Some(w),
+            Piece::Text(_) => None,
+        })
+        .collect();
+    let present: Vec<(&String, &String, u64)> =
+        renames.iter().filter(|(from, _)| words.contains(from.as_str())).map(|(from, (to, at))| (from, to, *at)).collect();
+    let mut places: HashMap<&str, std::collections::HashSet<u64>> = HashMap::new();
+    for (_, to, at) in &present {
+        places.entry(to.as_str()).or_default().insert(*at);
+    }
+    let (mut ok, mut skipped) = (HashMap::new(), Vec::new());
+    for (from, to, _) in present {
+        let one_place = places.get(to.as_str()).is_some_and(|p| p.len() == 1);
+        if is_c_name(to) && one_place && (!words.contains(to.as_str()) || to == from) {
+            ok.insert(from.clone(), to.clone());
+        } else if !skipped.contains(to) {
+            skipped.push(to.clone());
+        }
+    }
+    skipped.sort();
+    (ok, skipped)
+}
+
+fn build_evidence(
+    ctx: &Ctx<'_>,
+    provider: &dyn DeepDecompiler,
+    df: DeepFunction,
+    rebase: ghidra::Rebase,
+    renames: &Renames,
+    params: serde_json::Value,
+) -> Result<ToolOutput, ToolError> {
+    let subject = ctx.session.active()?.target.subject();
+    let env = Environment {
+        clean_room: false,
+        engine: provider.engine().to_string(),
+        engine_version: provider.engine_version(),
+        host: host_triple(),
+        language_id: provider.language_id(),
+    };
+    let line_count = df.pseudocode.as_deref().map(|p| p.lines().count()).unwrap_or(0);
+    // The entry as every other tool gives it; Ghidra's own only when it differs.
+    let entry = rebase.from_engine(df.entry);
+    // The names the person set, in place of Ghidra's own: as set in the function field and the
+    // summary, and in the code wherever they can stand as C names.
+    // By the function's address first: Ghidra may call it by a symbol the renames leave out
+    // (`sub_…`), and then that name of Ghidra's is renamed in the code too.
+    let by_address = ctx.session.active()?.annotations.names.get(&entry).cloned();
+    let mut renames = renames.clone();
+    if let Some(n) = &by_address {
+        renames.entry(df.name.clone()).or_insert_with(|| (n.clone(), entry));
+    }
+    let name = by_address.or_else(|| renames.get(&df.name).map(|(n, _)| n.clone())).unwrap_or_else(|| df.name.clone());
+    let texts: Vec<&str> = [Some(df.name.as_str()), df.signature.as_deref(), df.pseudocode.as_deref()].into_iter().flatten().collect();
+    let (in_code, not_in_code) = renames_for_code(&texts, &renames);
+    let signature = df.signature.as_deref().map(|s| rename_identifiers(s, &in_code));
+    let pseudocode = df.pseudocode.as_deref().map(|p| rename_identifiers(p, &in_code));
+    let renamed = name != df.name || signature != df.signature || pseudocode != df.pseudocode;
+    let mut result = serde_json::json!({
+        "function": name,
+        "entry": format!("{entry:#x}"),
+        "signature": signature,
+        "pseudo_code": pseudocode,
+        "engine": provider.engine(),
+    });
+    if !rebase.is_identity() {
+        result["engine_entry"] = serde_json::json!(format!("{:#x}", df.entry));
+    }
+    let mut e = EvidenceBuilder::new("native_function_pseudocode", subject, env)
+        .params(params)
+        .result(result)
+        .summary(format!("Pseudo-C for {name} from the Deep engine ({line_count} lines)."))
+        // Deep decompilation is derived by a mature external engine: stronger than the built-in
+        // inferred lifter, but still a reading aid rather than source.
+        .confidence(Confidence::Derived)
+        .target_content(true)
+        .limitation(Limitation::new("deep_engine", "the pseudo-C comes from the external Deep engine (Ghidra), not the original source"))
+        .location(Location::address(entry));
+    if !rebase.is_identity() {
+        e = e.limitation(Limitation::new(
+            "engine_rebased",
+            format!(
+                "Ghidra loaded this program at {:#x}, not where the built-in engine reads it ({:#x}); entry is the built-in address, engine_entry Ghidra's, and the addresses in Ghidra's names inside the pseudo-C (FUN_…, DAT_…) are Ghidra's",
+                rebase.theirs(),
+                rebase.ours(),
+            ),
+        ));
+    }
+    if renamed {
+        e = e.limitation(Limitation::new(
+            "user_names_applied",
+            "the names you set replace Ghidra's own in this pseudo-C, matched by the name Ghidra gives each address (its FUN_/DAT_/LAB_ name or the program's symbol)",
+        ));
+    }
+    if !not_in_code.is_empty() {
+        e = e.limitation(Limitation::new(
+            "user_names_not_in_code",
+            format!(
+                "Ghidra's own name is kept in the code for these names you set, because they aren't C names or the code already uses them for something else: {}",
+                not_in_code.join(", ")
+            ),
+        ));
+    }
+    if df.created {
+        e = e.limitation(Limitation::new(
+            "made_on_demand",
+            "Ghidra's analysis had no function here, so it made one starting at this address (for this session, never saved); its bounds come from following the code from there",
+        ));
+    }
+    Ok(ToolOutput::evidence(e.build()?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::native_common::test_support::*;
+    use super::*;
+    use craft_anything_testkit as tk;
+    use serde_json::json;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    /// A deep engine that loaded the program at `base`, not where its headers say, as Ghidra does
+    /// with a position-independent ELF: it knows only its own addresses, and remembers the last
+    /// one it was asked for.
+    struct Moved {
+        base: u64,
+        asked: AtomicU64,
+    }
+
+    impl DeepDecompiler for Moved {
+        fn engine(&self) -> &'static str {
+            "ghidra"
+        }
+        fn engine_version(&self) -> Option<String> {
+            Some("test".into())
+        }
+        fn image_base(&self) -> Option<u64> {
+            Some(self.base)
+        }
+        fn decompile(&self, entry: u64, _: &dyn Fn() -> bool, _: &dyn Fn(&str)) -> Result<Option<DeepFunction>, ghidra::GhidraError> {
+            self.asked.store(entry, Ordering::SeqCst);
+            if entry < self.base {
+                return Err(ghidra::GhidraError::Bridge { code: "not_found".into(), message: "the address is not in executable memory".into() });
+            }
+            let pseudocode = Some(format!("int FUN_{entry:08x}(void) {{ return 0; }}"));
+            Ok(Some(DeepFunction { entry, name: format!("FUN_{entry:08x}"), signature: None, pseudocode, created: false }))
+        }
+        fn list_functions(&self) -> Result<Vec<DeepFunction>, ghidra::GhidraError> {
+            Ok(Vec::new())
+        }
+    }
+
+    #[test]
+    fn a_function_named_in_our_addresses_reaches_an_engine_that_loaded_the_program_elsewhere() {
+        let (elf, l) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        const SHIFT: u64 = 0x10_0000;
+        let moved = Arc::new(Moved { base: tk::ELF_BASE + SHIFT, asked: AtomicU64::new(0) });
+        {
+            let mut s = e.session();
+            s.settings.deep_mode = true;
+            let provider: Arc<dyn DeepDecompiler> = moved.clone();
+            s.active_mut().unwrap().ext.insert(Arc::new(DeepSlot { provider: Ok(provider) }));
+        }
+        // By name: the engine is asked for its own address, and the answer is in ours.
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert_eq!(r["environment"]["engine"], "ghidra", "{r}");
+        assert_eq!(moved.asked.load(Ordering::SeqCst), l.code_va + SHIFT);
+        assert_eq!(r["result"]["entry"], format!("{:#x}", l.code_va));
+        assert_eq!(r["result"]["engine_entry"], format!("{:#x}", l.code_va + SHIFT));
+        let why = r["limitations"].as_array().unwrap().iter().find(|x| x["code"] == "engine_rebased").expect("says the addresses were moved");
+        assert!(why.to_string().contains(&format!("{:#x}", tk::ELF_BASE + SHIFT)), "{why}");
+        // A name Ghidra made carries Ghidra's address: passed on as it is. (A suffix with a hex
+        // letter: one of only digits is read as decimal until #318 is fixed.)
+        let ghidra_name = format!("FUN_{:08x}", l.code_va + SHIFT + 0x7a00);
+        let r = call(&e, "native_function_pseudocode", json!({"function": ghidra_name}));
+        assert_eq!(moved.asked.load(Ordering::SeqCst), l.code_va + SHIFT + 0x7a00);
+        assert_eq!(r["result"]["entry"], format!("{:#x}", l.code_va + 0x7a00));
+    }
+
+    /// A deep engine that waits before answering, and what the project's inbox showed meanwhile.
+    struct Slow {
+        inbox: std::path::PathBuf,
+        seen: craft_anything_platform::sync::Mutex<Vec<(String, String)>>,
+    }
+
+    impl DeepDecompiler for Slow {
+        fn engine(&self) -> &'static str {
+            "ghidra"
+        }
+        fn engine_version(&self) -> Option<String> {
+            Some("test".into())
+        }
+        fn image_base(&self) -> Option<u64> {
+            Some(tk::ELF_BASE)
+        }
+        fn decompile(&self, entry: u64, _: &dyn Fn() -> bool, waiting: &dyn Fn(&str)) -> Result<Option<DeepFunction>, ghidra::GhidraError> {
+            waiting("Ghidra is decompiling this function (1 min so far; it gives up at 15 min)");
+            *self.seen.lock().unwrap() = crate::inbox::activity(&self.inbox);
+            Ok(Some(DeepFunction { entry, name: "main".into(), signature: None, pseudocode: Some("int main(void) { return 0; }".into()), created: false }))
+        }
+        fn list_functions(&self) -> Result<Vec<DeepFunction>, ghidra::GhidraError> {
+            Ok(Vec::new())
+        }
+    }
+
+    /// #1714: what a decompile says while it waits reaches the project's inbox, where the run that
+    /// shows the feed reads it, and is gone once the decompile is done.
+    #[test]
+    fn a_decompile_says_in_the_inbox_what_it_waits_on() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        let d = tempfile::tempdir().unwrap();
+        let slow = Arc::new(Slow { inbox: d.path().to_path_buf(), seen: craft_anything_platform::sync::Mutex::default() });
+        {
+            let mut s = e.session();
+            s.settings.deep_mode = true;
+            s.ext.insert(Arc::new(crate::inbox::InboxDir(d.path().to_path_buf())));
+            let provider: Arc<dyn DeepDecompiler> = slow.clone();
+            s.active_mut().unwrap().ext.insert(Arc::new(DeepSlot { provider: Ok(provider) }));
+        }
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert_eq!(r["environment"]["engine"], "ghidra", "{r}");
+        let seen = slow.seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), 1, "{seen:?}");
+        assert!(seen[0].1.starts_with("Ghidra is decompiling this function"), "{seen:?}");
+        assert!(crate::inbox::activity(d.path()).is_empty(), "the line goes when the decompile is done");
+    }
+
+    /// A deep engine at our base that gives the same answer for every function: Ghidra's view of
+    /// `main`, calling `helper` by its symbol.
+    struct Symbols;
+
+    impl DeepDecompiler for Symbols {
+        fn engine(&self) -> &'static str {
+            "ghidra"
+        }
+        fn engine_version(&self) -> Option<String> {
+            Some("test".into())
+        }
+        fn image_base(&self) -> Option<u64> {
+            Some(tk::ELF_BASE)
+        }
+        fn decompile(&self, entry: u64, _: &dyn Fn() -> bool, _: &dyn Fn(&str)) -> Result<Option<DeepFunction>, ghidra::GhidraError> {
+            let pseudocode = Some(
+                "int main(void) {
+  return helper(5) + helper_count + my_helper();
+}"
+                .into(),
+            );
+            Ok(Some(DeepFunction { entry, name: "main".into(), signature: Some("int main(void)".into()), pseudocode, created: false }))
+        }
+        fn list_functions(&self) -> Result<Vec<DeepFunction>, ghidra::GhidraError> {
+            Ok(Vec::new())
+        }
+    }
+
+    fn with_deep(e: &crate::Engine, provider: Arc<dyn DeepDecompiler>) {
+        let mut s = e.session();
+        s.settings.deep_mode = true;
+        s.active_mut().unwrap().ext.insert(Arc::new(DeepSlot { provider: Ok(provider) }));
+    }
+
+    enum ExportReply {
+        Code,
+        NoFunction,
+        NoText,
+        BlankText,
+        FailFirst,
+        Disconnected,
+        InvalidProtocol,
+        CancelSecond,
+        StopSecond(crate::tool::CancelToken),
+        WaitSecond { started: std::sync::mpsc::Sender<()>, release: Arc<AtomicBool> },
+    }
+
+    struct ExportProvider {
+        calls: AtomicUsize,
+        reply: ExportReply,
+    }
+
+    const EXPORT_SHIFT: u64 = 0x10_0000;
+
+    impl ExportProvider {
+        fn new(reply: ExportReply) -> Arc<Self> {
+            Arc::new(Self { calls: AtomicUsize::new(0), reply })
+        }
+    }
+
+    impl DeepDecompiler for ExportProvider {
+        fn engine(&self) -> &'static str {
+            "ghidra"
+        }
+        fn engine_version(&self) -> Option<String> {
+            Some("test-export".into())
+        }
+        fn image_base(&self) -> Option<u64> {
+            Some(tk::ELF_BASE + EXPORT_SHIFT)
+        }
+        fn decompile(&self, entry: u64, cancel: &dyn Fn() -> bool, _: &dyn Fn(&str)) -> Result<Option<DeepFunction>, ghidra::GhidraError> {
+            let call = self.calls.fetch_add(1, Ordering::SeqCst) + 1;
+            match &self.reply {
+                ExportReply::NoFunction => return Ok(None),
+                ExportReply::FailFirst if call == 1 => {
+                    return Err(ghidra::GhidraError::Bridge { code: "not_found".into(), message: "fixture has no answer here".into() });
+                }
+                ExportReply::Disconnected => return Err(ghidra::GhidraError::Connection("fixture bridge closed".into())),
+                ExportReply::InvalidProtocol => return Err(ghidra::GhidraError::Protocol("fixture bridge sent invalid data".into())),
+                ExportReply::CancelSecond if call == 2 => return Err(ghidra::GhidraError::Cancelled),
+                ExportReply::StopSecond(token) if call == 2 => token.cancel(),
+                ExportReply::WaitSecond { started, release } if call == 2 => {
+                    let _ = started.send(());
+                    while !release.load(Ordering::SeqCst) {
+                        if cancel() {
+                            return Err(ghidra::GhidraError::Cancelled);
+                        }
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                }
+                _ => {}
+            }
+            let name = format!("FUN_{entry:08x}");
+            let pseudocode = match &self.reply {
+                ExportReply::NoText => None,
+                ExportReply::BlankText => Some(" \n\t".into()),
+                _ => Some(format!("int {name}(void) {{ return 73; }}")),
+            };
+            Ok(Some(DeepFunction { entry, name, signature: None, pseudocode, created: false }))
+        }
+        fn list_functions(&self) -> Result<Vec<DeepFunction>, ghidra::GhidraError> {
+            panic!("folder export uses the built-in function inventory")
+        }
+    }
+
+    fn export_state(folder: &std::path::Path) -> serde_json::Value {
+        let path = folder.join(super::super::program_facts_tools::EXPORT_STATE_FILE);
+        serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn source_folder_uses_deep_code_with_rebased_addresses_and_user_names() {
+        let (elf, layout) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        let provider = ExportProvider::new(ExportReply::Code);
+        with_deep(&e, provider.clone());
+        call(&e, "native_name_set", json!({"address": format!("{:#x}", layout.code_va), "name": "start_here"}));
+        let tmp = tempfile::tempdir().unwrap();
+        let folder = tmp.path().join("out");
+
+        let v = call(&e, "native_source_folder_write", json!({"folder": folder}));
+        let total = v["result"]["functions_total"].as_u64().unwrap();
+        assert_eq!(v["result"]["functions_by_engine"]["ghidra"], total);
+        assert_eq!(v["result"]["deep_fallbacks"], 0);
+        assert_eq!(v["environment"]["engine"], "ghidra");
+        assert_eq!(v["confidence"], "derived");
+        assert_eq!(provider.calls.load(Ordering::SeqCst) as u64, total);
+        let state = export_state(&folder);
+        assert_eq!(state["version"], 2);
+        let key = format!("{:#x}", layout.code_va);
+        let main = &state["functions"][&key];
+        assert_eq!(main["name"], "start_here");
+        assert_eq!(main["source"]["entry"], key);
+        assert_eq!(main["source"]["engine_entry"], format!("{:#x}", layout.code_va + EXPORT_SHIFT));
+        assert_eq!(main["source"]["engine_version"], "test-export");
+        assert!(main["structured"].is_null());
+        let text = std::fs::read_to_string(folder.join(main["file"].as_str().unwrap())).unwrap();
+        assert!(text.contains("int start_here(void) { return 73; }"), "{text}");
+        assert!(text.contains("engine_rebased"), "{text}");
+        assert!(text.contains("user_names_applied"), "{text}");
+
+        let resumed = call(&e, "native_source_folder_write", json!({"folder": folder}));
+        assert_eq!(resumed["result"]["written_now"], 0);
+        assert_eq!(resumed["result"]["already_done"], total);
+        assert_eq!(provider.calls.load(Ordering::SeqCst) as u64, total, "completed files are not decompiled again");
+    }
+
+    #[test]
+    fn source_folder_keeps_v1_files_when_a_deep_run_finishes_the_folder() {
+        let (elf, layout) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        let sha = e.session().active().unwrap().target.sha256.clone();
+        let tmp = tempfile::tempdir().unwrap();
+        let folder = tmp.path().join("out");
+        std::fs::create_dir(&folder).unwrap();
+        let legacy = folder.join("legacy-main.c");
+        std::fs::write(&legacy, b"// keep this completed version-1 file\nint main(void) { return 5; }\n").unwrap();
+        let before = std::fs::read(&legacy).unwrap();
+        let modified = std::fs::metadata(&legacy).unwrap().modified().unwrap();
+        let key = format!("{:#x}", layout.code_va);
+        let v1 = json!({
+            "version": 1, "target_sha256": sha, "target_name": "prog", "engine": "clean-room lifter",
+            "functions": {(key.clone()): {"file": "legacy-main.c", "name": "main", "lines": 1, "structured": true}}
+        });
+        std::fs::write(folder.join(super::super::program_facts_tools::EXPORT_STATE_FILE), serde_json::to_vec(&v1).unwrap()).unwrap();
+        let provider = ExportProvider::new(ExportReply::Code);
+        with_deep(&e, provider.clone());
+
+        let first = call(&e, "native_source_folder_write", json!({"folder": folder, "max_functions": 1}));
+        assert_eq!(first["result"]["functions_by_engine"]["builtin"], 1);
+        assert_eq!(first["result"]["functions_by_engine"]["ghidra"], 1);
+        assert_eq!(first["environment"]["engine"], "mixed");
+        let first_file = folder.join(first["result"]["written_files"][0].as_str().unwrap());
+        let first_bytes = std::fs::read(&first_file).unwrap();
+        let first_modified = std::fs::metadata(&first_file).unwrap().modified().unwrap();
+        let v = call(&e, "native_source_folder_write", json!({"folder": folder}));
+        let total = v["result"]["functions_total"].as_u64().unwrap();
+        assert_eq!(v["result"]["finished"], true);
+        assert_eq!(v["result"]["functions_by_engine"]["builtin"], 1);
+        assert_eq!(v["result"]["functions_by_engine"]["ghidra"], total - 1);
+        assert_eq!(v["environment"]["engine"], "mixed");
+        assert_eq!(v["confidence"], "inferred");
+        assert_eq!(provider.calls.load(Ordering::SeqCst) as u64, total - 1);
+        let state = export_state(&folder);
+        assert_eq!(state["functions"][&key]["source"]["engine"], "builtin");
+        assert_eq!(state["functions"][&key]["source"]["entry"], key);
+        assert_eq!(state["functions"][&key]["structured"], true);
+        assert_eq!(std::fs::read(&legacy).unwrap(), before);
+        assert_eq!(std::fs::metadata(&legacy).unwrap().modified().unwrap(), modified);
+        assert_eq!(std::fs::read(&first_file).unwrap(), first_bytes);
+        assert_eq!(std::fs::metadata(&first_file).unwrap().modified().unwrap(), first_modified);
+    }
+
+    #[test]
+    fn source_folder_falls_back_for_absent_or_empty_deep_code() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        for reply in [ExportReply::NoFunction, ExportReply::NoText, ExportReply::BlankText] {
+            let e = engine_with("prog", &elf);
+            with_deep(&e, ExportProvider::new(reply));
+            let tmp = tempfile::tempdir().unwrap();
+            let folder = tmp.path().join("out");
+            let v = call(&e, "native_source_folder_write", json!({"folder": folder}));
+            let total = v["result"]["functions_total"].as_u64().unwrap();
+            assert_eq!(v["result"]["functions_by_engine"]["builtin"], total);
+            assert_eq!(v["result"]["deep_fallbacks"], total);
+            assert_eq!(v["result"]["fallback_examples"].as_array().unwrap().len() as u64, total.min(5));
+            assert_eq!(v["environment"]["engine"], "builtin");
+            for function in export_state(&folder)["functions"].as_object().unwrap().values() {
+                assert_eq!(function["source"]["engine"], "builtin");
+                assert!(function["lines"].as_u64().unwrap() > 0);
+                let text = std::fs::read_to_string(folder.join(function["file"].as_str().unwrap())).unwrap();
+                assert!(text.contains("deep_engine_unavailable"), "{text}");
+            }
+        }
+    }
+
+    #[test]
+    fn source_folder_can_fall_back_for_one_function_and_use_deep_for_the_rest() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        with_deep(&e, ExportProvider::new(ExportReply::FailFirst));
+        let tmp = tempfile::tempdir().unwrap();
+        let v = call(&e, "native_source_folder_write", json!({"folder": tmp.path().join("out")}));
+        let total = v["result"]["functions_total"].as_u64().unwrap();
+        assert_eq!(v["result"]["functions_by_engine"]["builtin"], 1);
+        assert_eq!(v["result"]["functions_by_engine"]["ghidra"], total - 1);
+        assert_eq!(v["result"]["deep_fallbacks"], 1);
+        assert_eq!(v["environment"]["engine"], "mixed");
+    }
+
+    #[test]
+    fn source_folder_rechecks_the_deadline_after_a_failed_bridge_restarts() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        for failure in [ExportReply::Disconnected, ExportReply::InvalidProtocol] {
+            let e = engine_with("prog", &elf);
+            let failed = ExportProvider::new(failure);
+            with_deep(&e, failed.clone());
+            let replacement = ExportProvider::new(ExportReply::Code);
+            let start = Arc::new(TestProviderStart { result: Ok(replacement.clone()), delay: Duration::from_millis(1100), calls: AtomicUsize::new(0) });
+            e.session().active_mut().unwrap().ext.insert(start.clone());
+            let tmp = tempfile::tempdir().unwrap();
+            let folder = tmp.path().join("out");
+
+            let v = call(&e, "native_source_folder_write", json!({"folder": folder, "max_seconds": 1}));
+
+            assert_eq!(failed.calls.load(Ordering::SeqCst), 1, "a real bridge error invalidates the first provider");
+            assert_eq!(start.calls.load(Ordering::SeqCst), 1, "the next function starts its replacement");
+            assert_eq!(replacement.calls.load(Ordering::SeqCst), 0, "startup spent the budget, so no replacement decompile may start");
+            assert_eq!(v["result"]["written_now"], 1);
+            assert_eq!(v["result"]["functions_done"], 1);
+            assert_eq!(v["result"]["deep_fallbacks"], 1);
+            assert_eq!(v["result"]["stopped_because"], "time_limit");
+            assert_eq!(v["result"]["finished"], false);
+            assert!(v["result"]["next_function"].is_string());
+            let state = export_state(&folder);
+            let functions = state["functions"].as_object().unwrap();
+            assert_eq!(functions.len(), 1, "the unstarted function gets no file or completed record");
+            let first = folder.join(functions.values().next().unwrap()["file"].as_str().unwrap());
+            let before = std::fs::read(&first).unwrap();
+            let modified = std::fs::metadata(&first).unwrap().modified().unwrap();
+
+            let resumed = call(&e, "native_source_folder_write", json!({"folder": folder}));
+
+            assert_eq!(resumed["result"]["finished"], true);
+            assert_eq!(resumed["result"]["already_done"], 1);
+            assert_eq!(start.calls.load(Ordering::SeqCst), 1, "the ready replacement is reused");
+            assert_eq!(replacement.calls.load(Ordering::SeqCst) as u64, resumed["result"]["functions_total"].as_u64().unwrap() - 1);
+            assert_eq!(std::fs::read(&first).unwrap(), before);
+            assert_eq!(std::fs::metadata(&first).unwrap().modified().unwrap(), modified);
+        }
+    }
+
+    #[test]
+    fn source_folder_checks_an_unavailable_installation_once_per_call() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        let start = Arc::new(TestProviderStart {
+            result: Err(Some(NotUsed::new(Unavailable::NotInstalled, NOT_INSTALLED))),
+            delay: Duration::ZERO,
+            calls: AtomicUsize::new(0),
+        });
+        {
+            let mut session = e.session();
+            session.settings.deep_mode = true;
+            session.active_mut().unwrap().ext.insert(start.clone());
+        }
+        let tmp = tempfile::tempdir().unwrap();
+
+        let v = call(&e, "native_source_folder_write", json!({"folder": tmp.path().join("out")}));
+
+        let total = v["result"]["functions_total"].as_u64().unwrap();
+        assert!(total > 1, "the cache must cover more than one function");
+        assert_eq!(start.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(v["result"]["functions_by_engine"]["builtin"], total);
+        assert_eq!(v["result"]["deep_fallbacks"], total);
+        assert_eq!(v["result"]["finished"], true);
+        let next = call(&e, "native_source_folder_write", json!({"folder": tmp.path().join("another-export")}));
+        assert_eq!(next["result"]["finished"], true);
+        assert_eq!(start.calls.load(Ordering::SeqCst), 2, "another export gets its own availability check");
+    }
+
+    #[test]
+    fn source_folder_cancellation_saves_finished_functions_without_writing_the_cancelled_one() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        for stop_token in [false, true] {
+            let e = engine_with("prog", &elf);
+            let token = crate::tool::CancelToken::default();
+            let reply = if stop_token { ExportReply::StopSecond(token.clone()) } else { ExportReply::CancelSecond };
+            with_deep(&e, ExportProvider::new(reply));
+            let tmp = tempfile::tempdir().unwrap();
+            let folder = tmp.path().join("out");
+            let out = e.call("native_source_folder_write", json!({"folder": folder}), crate::CallOptions::new(crate::Caller::Mcp).with_cancel(token));
+            assert_eq!(out.unwrap_err().code, craft_anything_evidence::ErrorCode::Cancelled);
+            let state = export_state(&folder);
+            let functions = state["functions"].as_object().unwrap();
+            assert_eq!(functions.len(), 1, "the first function is saved before cancellation: {state}");
+            assert_eq!(std::fs::read_dir(&folder).unwrap().count(), 2, "only one code file and the state");
+            let first = folder.join(functions.values().next().unwrap()["file"].as_str().unwrap());
+            let before = std::fs::read(&first).unwrap();
+            let modified = std::fs::metadata(&first).unwrap().modified().unwrap();
+            let provider = ExportProvider::new(ExportReply::Code);
+            with_deep(&e, provider.clone());
+            let v = call(&e, "native_source_folder_write", json!({"folder": folder}));
+            assert_eq!(v["result"]["finished"], true);
+            assert_eq!(v["result"]["already_done"], 1);
+            assert_eq!(provider.calls.load(Ordering::SeqCst) as u64, v["result"]["functions_total"].as_u64().unwrap() - 1);
+            assert_eq!(std::fs::read(&first).unwrap(), before);
+            assert_eq!(std::fs::metadata(&first).unwrap().modified().unwrap(), modified);
+        }
+    }
+
+    #[test]
+    fn source_folder_cancels_an_in_flight_decompile_and_can_resume() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        for cached in [false, true] {
+            let e = engine_with("prog", &elf);
+            let token = crate::tool::CancelToken::default();
+            let (started, waiting) = std::sync::mpsc::channel();
+            let (finished, done) = std::sync::mpsc::channel();
+            let release = Arc::new(AtomicBool::new(false));
+            let provider = ExportProvider::new(ExportReply::WaitSecond { started, release: release.clone() });
+            if cached {
+                with_deep(&e, provider);
+            } else {
+                let start = Arc::new(TestProviderStart { result: Ok(provider), delay: Duration::ZERO, calls: AtomicUsize::new(0) });
+                let mut session = e.session();
+                session.settings.deep_mode = true;
+                session.active_mut().unwrap().ext.insert(start);
+            }
+            let tmp = tempfile::tempdir().unwrap();
+            let folder = tmp.path().join("out");
+            std::thread::scope(|scope| {
+                let worker = scope.spawn(|| {
+                    let result =
+                        e.call("native_source_folder_write", json!({"folder": folder}), crate::CallOptions::new(crate::Caller::Mcp).with_cancel(token.clone()));
+                    let _ = finished.send(());
+                    result
+                });
+                let entered = waiting.recv_timeout(Duration::from_secs(5));
+                token.cancel();
+                let cancelled_while_waiting = done.recv_timeout(Duration::from_secs(5));
+                // Release and join even when cancellation was not forwarded. The negative
+                // control must finish before asserting, rather than leave a blocked provider.
+                release.store(true, Ordering::SeqCst);
+                let result = worker.join().expect("export worker");
+                assert!(entered.is_ok(), "the second decompile did not start (cached={cached})");
+                assert!(cancelled_while_waiting.is_ok(), "the export waited for the decompile to return (cached={cached})");
+                assert_eq!(result.unwrap_err().code, craft_anything_evidence::ErrorCode::Cancelled);
+            });
+
+            let state = export_state(&folder);
+            let functions = state["functions"].as_object().unwrap();
+            assert_eq!(functions.len(), 1, "save the first function but not the in-flight one");
+            assert_eq!(std::fs::read_dir(&folder).unwrap().count(), 2, "one code file and its resumable state");
+            let first = folder.join(functions.values().next().unwrap()["file"].as_str().unwrap());
+            let before = std::fs::read(&first).unwrap();
+            with_deep(&e, ExportProvider::new(ExportReply::Code));
+            let resumed = call(&e, "native_source_folder_write", json!({"folder": folder}));
+            assert_eq!(resumed["result"]["already_done"], 1);
+            assert_eq!(resumed["result"]["finished"], true);
+            assert_eq!(std::fs::read(first).unwrap(), before);
+        }
+    }
+
+    #[test]
+    fn source_folder_does_not_decompile_when_no_function_can_start() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        let provider = ExportProvider::new(ExportReply::Code);
+        with_deep(&e, provider.clone());
+        let tmp = tempfile::tempdir().unwrap();
+        let v = call(&e, "native_source_folder_write", json!({"folder": tmp.path().join("out"), "max_seconds": 0}));
+        assert_eq!(v["result"]["written_now"], 0);
+        assert_eq!(v["result"]["functions_done"], 0);
+        assert_eq!(provider.calls.load(Ordering::SeqCst), 0);
+    }
+
+    /// #1903 review: once Ghidra is stopped for the project, a Ghidra already open for its target
+    /// is let go, so its process ends, and the decompile uses the built-in engine.
+    #[test]
+    fn a_stop_ends_the_ghidra_already_open() {
+        struct Open(Arc<AtomicBool>);
+        impl Drop for Open {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::SeqCst);
+            }
+        }
+        impl DeepDecompiler for Open {
+            fn engine(&self) -> &'static str {
+                "ghidra"
+            }
+            fn engine_version(&self) -> Option<String> {
+                None
+            }
+            fn decompile(&self, _: u64, _: &dyn Fn() -> bool, _: &dyn Fn(&str)) -> Result<Option<DeepFunction>, ghidra::GhidraError> {
+                Ok(None)
+            }
+            fn list_functions(&self) -> Result<Vec<DeepFunction>, ghidra::GhidraError> {
+                Ok(Vec::new())
+            }
+        }
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        let d = tempfile::Builder::new().prefix("ca").tempdir().unwrap();
+        std::fs::write(d.path().join(MANIFEST), "{}").unwrap();
+        let investigation = crate::project::Project::create(&d.path().join("investigation.cany"), "Game", Default::default()).unwrap();
+        e.session().open_project(investigation).unwrap();
+        let ended = Arc::new(AtomicBool::new(false));
+        with_deep(&e, Arc::new(Open(ended.clone())));
+        stop_for(d.path()).unwrap();
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert!(ended.load(Ordering::SeqCst), "the open Ghidra was let go");
+        assert_ne!(r["environment"]["engine"], "ghidra", "{r}");
+        assert!(e.session().active().unwrap().ext.get::<DeepSlot>().is_none());
+    }
+
+    /// #1903 review: the stop file has a version, and one from before it had one still counts.
+    #[test]
+    fn the_stop_file_has_a_version_and_older_ones_are_read() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join(MANIFEST), "{}").unwrap();
+        stop_for(d.path()).unwrap();
+        let record: StopRecord = serde_json::from_slice(&std::fs::read(d.path().join(STOPPED)).unwrap()).unwrap();
+        assert_eq!(record.version, STOP_VERSION);
+        assert_eq!(stopped_at(&serde_json::to_string(&record).unwrap()), Some(u128::from(record.stopped_at_ns)));
+        assert_eq!(
+            stopped_at(
+                "1700000000000000000
+"
+            ),
+            Some(1_700_000_000_000_000_000),
+            "version 0: the bare number"
+        );
+        assert_eq!(stopped_at("not a time"), None);
+    }
+
+    #[test]
+    fn ghidra_pseudo_code_uses_the_names_the_person_set_for_its_own_names() {
+        let (elf, l) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        const SHIFT: u64 = 0x10_0000;
+        with_deep(&e, Arc::new(Moved { base: tk::ELF_BASE + SHIFT, asked: AtomicU64::new(0) }));
+        call(&e, "native_name_set", json!({"address": format!("{:#x}", l.code_va), "name": "start_here"}));
+        // Ghidra calls it FUN_<its own address>: that name is replaced, in the code too.
+        for asked in ["main", "start_here"] {
+            let r = call(&e, "native_function_pseudocode", json!({"function": asked}));
+            assert_eq!(r["environment"]["engine"], "ghidra", "{r}");
+            assert_eq!(r["result"]["function"], "start_here", "{r}");
+            assert_eq!(r["result"]["pseudo_code"], "int start_here(void) { return 0; }");
+            assert_eq!(r["summary"], "Pseudo-C for start_here from the Deep engine (1 lines).");
+            assert!(r["limitations"].as_array().unwrap().iter().any(|x| x["code"] == "user_names_applied"), "{r}");
+        }
+    }
+
+    #[test]
+    fn ghidra_pseudo_code_uses_the_names_the_person_set_for_the_programs_symbols() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        with_deep(&e, Arc::new(Symbols));
+        let helper = call(&e, "native_function_show", json!({"function": "helper"}))["result"]["entry"].as_str().unwrap().to_string();
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert!(!r["limitations"].as_array().unwrap().iter().any(|x| x["code"] == "user_names_applied"), "nothing named yet: {r}");
+        call(&e, "native_name_set", json!({"address": helper, "name": "add_up"}));
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        // Whole names only: `helper_count` and `my_helper` are other names.
+        assert_eq!(
+            r["result"]["pseudo_code"],
+            "int main(void) {
+  return add_up(5) + helper_count + my_helper();
+}",
+            "{r}"
+        );
+        assert_eq!(r["result"]["function"], "main");
+    }
+
+    #[test]
+    fn a_name_that_cant_stand_in_c_or_clashes_stays_out_of_the_code() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        with_deep(&e, Arc::new(Symbols));
+        let helper = call(&e, "native_function_show", json!({"function": "helper"}))["result"]["entry"].as_str().unwrap().to_string();
+        let main = call(&e, "native_function_show", json!({"function": "main"}))["result"]["entry"].as_str().unwrap().to_string();
+        let original = "int main(void) {\n  return helper(5) + helper_count + my_helper();\n}";
+        let not_in_code = |r: &serde_json::Value| {
+            r["limitations"].as_array().unwrap().iter().find(|x| x["code"] == "user_names_not_in_code").map(|x| x["message"].as_str().unwrap().to_string())
+        };
+        // Not a C name: the code keeps Ghidra's name, the function field and summary show the person's.
+        call(&e, "native_name_set", json!({"address": main, "name": "entry // note"}));
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert_eq!(r["result"]["pseudo_code"], original, "{r}");
+        assert_eq!(r["result"]["function"], "entry // note");
+        assert_eq!(r["summary"], "Pseudo-C for entry // note from the Deep engine (3 lines).");
+        assert!(not_in_code(&r).is_some_and(|m| m.contains("entry // note")), "{r}");
+        // A name the code already uses for something else would name two things: left out too.
+        call(&e, "native_name_set", json!({"address": main, "name": ""}));
+        call(&e, "native_name_set", json!({"address": helper, "name": "helper_count"}));
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert_eq!(r["result"]["pseudo_code"], original, "{r}");
+        assert!(not_in_code(&r).is_some_and(|m| m.contains("helper_count")), "{r}");
+        // One name given to two addresses that both appear would name two things: left out.
+        call(&e, "native_name_set", json!({"address": helper, "name": "init"}));
+        call(&e, "native_name_set", json!({"address": main, "name": "init"}));
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert_eq!(r["result"]["pseudo_code"], original, "{r}");
+        assert_eq!(r["result"]["function"], "init");
+        assert!(not_in_code(&r).is_some_and(|m| m.contains("init")), "{r}");
+        call(&e, "native_name_set", json!({"address": main, "name": ""}));
+        // A C keyword isn't a name either.
+        call(&e, "native_name_set", json!({"address": helper, "name": "return"}));
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert_eq!(r["result"]["pseudo_code"], original, "{r}");
+    }
+
+    /// A deep engine that calls every function by a program symbol starting with `sub_`, which the
+    /// name matching leaves out.
+    struct SubNamed;
+
+    impl DeepDecompiler for SubNamed {
+        fn engine(&self) -> &'static str {
+            "ghidra"
+        }
+        fn engine_version(&self) -> Option<String> {
+            Some("test".into())
+        }
+        fn image_base(&self) -> Option<u64> {
+            Some(tk::ELF_BASE)
+        }
+        fn decompile(&self, entry: u64, _: &dyn Fn() -> bool, _: &dyn Fn(&str)) -> Result<Option<DeepFunction>, ghidra::GhidraError> {
+            let pseudocode = Some("int sub_parse(void) { return 0; }".into());
+            Ok(Some(DeepFunction { entry, name: "sub_parse".into(), signature: None, pseudocode, created: false }))
+        }
+        fn list_functions(&self) -> Result<Vec<DeepFunction>, ghidra::GhidraError> {
+            Ok(Vec::new())
+        }
+    }
+
+    #[test]
+    fn the_name_set_for_a_function_is_found_by_its_address() {
+        let (elf, l) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        with_deep(&e, Arc::new(SubNamed));
+        call(&e, "native_name_set", json!({"address": format!("{:#x}", l.code_va), "name": "parse_args"}));
+        let r = call(&e, "native_function_pseudocode", json!({"function": "parse_args"}));
+        assert_eq!(r["result"]["function"], "parse_args", "{r}");
+        assert_eq!(r["summary"], "Pseudo-C for parse_args from the Deep engine (1 lines).");
+        assert_eq!(r["result"]["pseudo_code"], "int parse_args(void) { return 0; }", "and in the code");
+    }
+
+    #[test]
+    fn identifiers_are_renamed_whole() {
+        let renames: HashMap<String, String> = [("check_key".to_string(), "verify".to_string()), ("FUN_00101160".to_string(), "go".to_string())].into();
+        assert_eq!(
+            rename_identifiers("if (check_key(x) && check_key_v2() && !my_check_key) FUN_00101160(\"check_key\");", &renames),
+            "if (verify(x) && check_key_v2() && !my_check_key) go(\"check_key\");"
+        );
+        assert_eq!(rename_identifiers("check_key", &renames), "verify");
+        // A struct field of the same name is another thing.
+        assert_eq!(
+            rename_identifiers("check_key(p->check_key, s.check_key, p -> check_key, s . check_key, 1.5);", &renames),
+            "verify(p->check_key, s.check_key, p -> check_key, s . check_key, 1.5);"
+        );
+        assert_eq!(rename_identifiers("A::check_key(); B::check_key(); check_key();", &renames), "A::check_key(); B::check_key(); verify();");
+        // Comments are kept as they are, and a quote inside one doesn't hide the code after it.
+        assert_eq!(
+            rename_identifiers("// don't check_key here\ncheck_key(); /* it's check_key */ check_key(0x1f);", &renames),
+            "// don't check_key here\nverify(); /* it's check_key */ verify(0x1f);"
+        );
+        assert_eq!(rename_identifiers("x = 10check_key; /* never closed check_key", &renames), "x = 10check_key; /* never closed check_key");
+        assert_eq!(rename_identifiers(r#"puts("a \" check_key"); c = '\''; check_key();"#, &renames), r#"puts("a \" check_key"); c = '\''; verify();"#);
+        assert_eq!(rename_identifiers("", &renames), "");
+        assert_eq!(rename_identifiers("été check_key", &renames), "été verify");
+    }
+
+    #[test]
+    fn an_engine_at_our_base_gets_our_addresses_unchanged() {
+        let (elf, l) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        let same = Arc::new(Moved { base: tk::ELF_BASE, asked: AtomicU64::new(0) });
+        {
+            let mut s = e.session();
+            s.settings.deep_mode = true;
+            let provider: Arc<dyn DeepDecompiler> = same.clone();
+            s.active_mut().unwrap().ext.insert(Arc::new(DeepSlot { provider: Ok(provider) }));
+        }
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert_eq!(same.asked.load(Ordering::SeqCst), l.code_va);
+        assert_eq!(r["result"]["entry"], format!("{:#x}", l.code_va));
+        assert!(r["result"].get("engine_entry").is_none(), "{r}");
+        assert!(!r["limitations"].as_array().unwrap().iter().any(|x| x["code"] == "engine_rebased"));
+    }
+
+    /// A deep engine whose every decompile fails the same way.
+    struct Failing(fn() -> ghidra::GhidraError);
+
+    impl DeepDecompiler for Failing {
+        fn engine(&self) -> &'static str {
+            "ghidra"
+        }
+        fn engine_version(&self) -> Option<String> {
+            Some("test".into())
+        }
+        fn image_base(&self) -> Option<u64> {
+            Some(tk::ELF_BASE)
+        }
+        fn decompile(&self, _: u64, _: &dyn Fn() -> bool, _: &dyn Fn(&str)) -> Result<Option<DeepFunction>, ghidra::GhidraError> {
+            Err((self.0)())
+        }
+        fn list_functions(&self) -> Result<Vec<DeepFunction>, ghidra::GhidraError> {
+            Ok(Vec::new())
+        }
+    }
+
+    /// Deep mode with Ghidra already known not to open this target, as a failed import leaves it.
+    fn with_failed_open(e: &crate::Engine, message: &str) {
+        let mut s = e.session();
+        s.settings.deep_mode = true;
+        s.active_mut().unwrap().ext.insert(Arc::new(DeepSlot { provider: Err(NotUsed::new(Unavailable::OpenFailed, message)) }));
+    }
+
+    /// The built-in answer to a Deep request says, in its engine, summary, result and
+    /// limitations, that Ghidra was tried and why it gave nothing.
+    fn assert_fallback(r: &serde_json::Value, reason: &str, says: &str) {
+        let engine = r["result"]["engine"].as_str().unwrap();
+        assert!(engine.starts_with("clean-room lifter (Deep mode fallback: "), "{engine}");
+        let field = &r["result"]["deep_engine_unavailable"];
+        assert_eq!(field["reason"], reason, "{r}");
+        assert_eq!(field["requested"], true);
+        assert!(field["message"].as_str().unwrap().contains(says), "{field}");
+        let summary = r["summary"].as_str().unwrap();
+        assert!(summary.contains("Deep mode was on but Ghidra wasn't used") && summary.contains("built-in decompiler"), "{summary}");
+        let l = r["limitations"].as_array().unwrap().iter().find(|l| l["code"] == "deep_engine_unavailable").expect("limitation");
+        assert!(l["message"].as_str().unwrap().contains(says), "{l}");
+        assert_eq!(r["environment"]["engine"], "builtin");
+    }
+
+    /// #2209: Ghidra couldn't import the program (or its headless analyzer didn't start). The
+    /// built-in answer is labelled as a fallback with the reason, and an address only Ghidra
+    /// could have placed fails with Ghidra's failure as the cause, not just "no function".
+    #[test]
+    fn a_failed_ghidra_import_is_named_on_the_fallback_and_on_the_error() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        let open = "Ghidra couldn't open this program (could not start Ghidra: No load spec found for import file: target-1).";
+        with_failed_open(&e, open);
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert_fallback(&r, "open_failed", "No load spec found");
+        assert_eq!(r["result"]["engine"], "clean-room lifter (Deep mode fallback: Ghidra couldn't open this program)");
+
+        let err = call_err(&e, "native_function_pseudocode", json!({"function": "0x7fff0000"}));
+        assert!(err.message.starts_with("Ghidra couldn't open this program (could not start Ghidra: No load spec found"), "{}", err.message);
+        assert!(err.message.contains("no function named or at"), "{}", err.message);
+        assert_eq!(err.code, ErrorCode::EngineMissing);
+        let details = err.details.unwrap();
+        assert_eq!(details["reason"], "deep_engine_unavailable");
+        assert_eq!(details["deep_engine_unavailable"]["reason"], "open_failed");
+        assert_eq!(details["function"], "0x7fff0000");
+        assert!(err.remediation.unwrap_or_default().contains("native_function_find"));
+    }
+
+    /// Ghidra opened the program but has no function at the address: the built-in answer still
+    /// says so, and for an address neither engine knows it stays a "no function" error, with
+    /// Ghidra's answer as the hint and the typed reason in the details.
+    #[test]
+    fn ghidra_having_no_function_is_named_on_the_fallback_and_the_error() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        with_deep(&e, Arc::new(Failing(|| ghidra::GhidraError::Bridge { code: "not_found".into(), message: "no code there".into() })));
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert_fallback(&r, "no_function", "no code there");
+
+        let err = call_err(&e, "native_function_pseudocode", json!({"function": "FUN_7fff0000"}));
+        assert!(err.message.starts_with("No function named or at"), "{}", err.message);
+        assert!(err.remediation.unwrap_or_default().starts_with("Ghidra's analysis has no function at this address"));
+        assert_eq!(err.details.unwrap()["deep_engine_unavailable"]["reason"], "no_function");
+    }
+
+    /// A decompile that fails in the bridge falls back with that reason, and the dead bridge is
+    /// forgotten so the next call starts it again.
+    #[test]
+    fn a_failed_decompile_is_named_on_the_fallback() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        with_deep(&e, Arc::new(Failing(|| ghidra::GhidraError::Connection("the bridge closed".into()))));
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert_fallback(&r, "decompile_failed", "the bridge closed");
+        assert!(e.session().active().unwrap().ext.get::<DeepSlot>().is_none(), "a dead bridge is started again next time");
+    }
+
+    /// Without Deep mode nothing about Ghidra is added (Clean room refuses the tool anyway; this
+    /// is the engine's answer with Deep mode on and Ghidra answering).
+    #[test]
+    fn a_ghidra_answer_carries_no_fallback_field() {
+        let (elf, _) = tk::elf64(tk::ElfArch::X86_64, true);
+        let e = engine_with("prog", &elf);
+        with_deep(&e, Arc::new(Symbols));
+        let r = call(&e, "native_function_pseudocode", json!({"function": "main"}));
+        assert_eq!(r["environment"]["engine"], "ghidra", "{r}");
+        assert!(r["result"].get("deep_engine_unavailable").is_none(), "{r}");
+        assert!(!r["limitations"].as_array().unwrap().iter().any(|l| l["code"] == "deep_engine_unavailable"));
+    }
+}

@@ -251,6 +251,30 @@ function runHook(hookId, rootDir, explicitFiles = []) {
       return { ok: true, message: 'Manual Boss deploy approval verified.' };
     }
 
+    case 'block-client-agpl-leak': {
+      const targetFiles = explicitFiles.length > 0
+        ? explicitFiles
+        : collectCodeFiles(rootDir, []).filter((fp) => {
+            const rel = path.relative(rootDir, fp).replace(/\\/g, '/');
+            return !rel.startsWith('vendor/specialist-skills/optional/trailofbits-skills/') && !rel.startsWith('scripts/');
+          });
+      for (const raw of targetFiles) {
+        const abs = path.isAbsolute(raw) ? raw : path.join(rootDir, raw);
+        const rel = path.relative(rootDir, abs).replace(/\\/g, '/');
+        if (rel.startsWith('vendor/specialist-skills/optional/trailofbits-skills/')) continue;
+        if (/trailofbits/i.test(rel)) {
+          return { ok: false, message: `AGPL/CC-BY-SA isolation breach: "${rel}" references trailofbits outside internal-audit-only vendor folder.` };
+        }
+        if (fs.existsSync(abs) && fs.statSync(abs).isFile()) {
+          const content = fs.readFileSync(abs, 'utf8');
+          if (/trailofbits\/skills|AGPL-3\.0/i.test(content)) {
+            return { ok: false, message: `AGPL/trailofbits isolation breach detected inside "${rel}". Never copy into client repos.` };
+          }
+        }
+      }
+      return { ok: true, message: 'Zero trailofbits/AGPL leakage into client or core code.' };
+    }
+
     default:
       return { ok: false, message: `Unknown hook "${hookId}"` };
   }
@@ -311,7 +335,13 @@ function runSelfTest() {
   // 7. block-unapproved-deploy
   expect('block-unapproved-deploy blocks without Boss approval', false, runHook('block-unapproved-deploy', tmpRoot));
 
-  // 8. Repo-wide portability & syntax self-checks
+  // 8. block-client-agpl-leak
+  const badAgpl = path.join(tmpRoot, 'src', 'trailofbits-helper.js');
+  fs.writeFileSync(badAgpl, '// copied from trailofbits/skills AGPL-3.0\n');
+  expect('block-client-agpl-leak traps trailofbits/AGPL in client src', false, runHook('block-client-agpl-leak', tmpRoot, [badAgpl]));
+  expect('block-client-agpl-leak allows clean code', true, runHook('block-client-agpl-leak', tmpRoot, [goodGst]));
+
+  // 9. Repo-wide portability & syntax self-checks
   expect('pre-commit-portability on Mother Factory', true, runHook('pre-commit-portability', DEFAULT_ROOT));
   expect('pre-commit-lint-typecheck on Mother Factory', true, runHook('pre-commit-lint-typecheck', DEFAULT_ROOT));
   expect('pre-commit-ast-collision on Mother Factory', true, runHook('pre-commit-ast-collision', DEFAULT_ROOT));

@@ -1,0 +1,131 @@
+---
+title: "Custom Instructions"
+description: "Guide Strix with custom testing instructions"
+---
+
+Use instructions to provide context, credentials, or focus areas for your scan.
+
+## Inline Instructions
+
+```bash
+strix --target https://app.com --instruction "Focus on authentication vulnerabilities"
+```
+
+## File-Based Instructions
+
+For complex instructions, use a file:
+
+```bash
+strix --target https://app.com --instruction-file ./pentest-instructions.md
+```
+
+## Common Use Cases
+
+### Authenticated Testing
+
+```bash
+strix --target https://app.com \
+  --instruction "Login with email: test@example.com, password: TestPass123"
+```
+
+### Focused Scope
+
+```bash
+strix --target https://api.example.com \
+  --instruction "Focus on IDOR vulnerabilities in the /api/users endpoints"
+```
+
+### Exclusions
+
+```bash
+strix --target https://app.com \
+  --instruction "Do not test /admin or /internal endpoints"
+```
+
+### API Testing
+
+```bash
+strix --target https://api.example.com \
+  --instruction "Use API key header: X-API-Key: abc123. Focus on rate limiting bypass."
+```
+
+## Instruction File Example
+
+```markdown instructions.md
+# Penetration Test Instructions
+
+## Credentials
+- Admin: admin@example.com / AdminPass123
+- User: user@example.com / UserPass123
+
+## Focus Areas
+1. IDOR in user profile endpoints
+2. Privilege escalation between roles
+3. JWT token manipulation
+
+## Out of Scope
+- /health endpoints
+- Third-party integrations
+```
+
+<Tip>
+Be specific. Good instructions help Strix prioritize the most valuable attack paths.
+</Tip>
+
+## Reusable methodology
+
+Keep a methodology that you reuse across engagements in a version-controlled instruction file. Good content for the file:
+
+- Coordination rules, for example which identities to test as HIGH and LOW privilege
+- Shared artifacts and the format of the evidence you expect
+- Completion criteria
+- The built-in skills to delegate to, by name, for example `idor`, `broken_function_level_authorization`, `mass_assignment`, and `business_logic`
+
+Every agent in the scan sees the instructions. Agents do not see the full text of a skill unless the skill matches their subtask, so a methodology written as a skill is often not loaded. Use `--skills` to load a skill into the root agent at start, and keep custom skills for specialist knowledge the built-in set does not have. See [Skills](/advanced/skills#skills-or-instructions).
+
+```bash
+strix --target https://api.example.com \
+  --instruction-file ./methodology.md \
+  --skills idor,broken_function_level_authorization,mass_assignment,business_logic
+```
+
+## Workspace files
+
+Instructions become part of the prompt. To give Strix a file to work with, such
+as a wordlist, an API specification, or notes, use `--workspace-file`. Strix
+places the file into the sandbox workspace before the scan starts.
+
+```bash
+strix --target https://app.com --workspace-file ./wordlist.txt
+```
+
+The file lands at `/workspace/<file name>`. To choose the destination, write
+`PATH:DEST`. `DEST` is a path inside `/workspace`.
+
+```bash
+strix --target https://app.com \
+  --workspace-file ./openapi.yaml:specs/openapi.yaml \
+  --workspace-file ./notes.md
+```
+
+Repeat the option for every file you want to place. Strix lists the files in the
+agent task, so the agent knows where to read them.
+
+Rules that apply to every workspace file:
+
+- Strix copies the file into the sandbox. The agent can edit the copy, but the
+  file on your machine does not change.
+- The destination must stay inside `/workspace`.
+- The destination must not fall inside a target directory, because target files
+  come from the target itself. Strix skips such a file and logs a warning.
+- Two files cannot claim the same destination.
+
+<Note>
+A workspace file is data for the agent to use. It is not a scan target, and its
+contents do not change the instructions.
+</Note>
+
+<Warning>
+Do not place secrets in a workspace file. The sandbox runs untrusted target
+code, so treat anything you place there as readable by the target.
+</Warning>

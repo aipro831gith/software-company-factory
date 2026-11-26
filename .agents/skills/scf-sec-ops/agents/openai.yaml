@@ -1,6 +1,8 @@
 name: scf-sec-ops
-version: 1.1.0
-display_name: 5-Stage Security & Compliance Officer
+version: 2.0.0
+agent_id: 9
+agent_role: Dedicated Cybersecurity Specialist
+display_name: Dedicated Cybersecurity Specialist
 description: Runs 5-stage fail-closed security audits (secrets, PII/Argon2id, prod hardening, deep logic, attacker review) and financial invariants.
 default_model_slot: deep_logic_slot
 adversarial_slot: blind_reviewer_slot
@@ -13,3 +15,6 @@ invocation:
   writes_only:
     - .factory/gates/
     - .factory/tickets/
+  isolated_plugins:
+    - vendor/specialist-skills/optional/trailofbits-skills (internal_audit_only)
+    - vendor/specialist-skills/optional/strix (standalone_only)

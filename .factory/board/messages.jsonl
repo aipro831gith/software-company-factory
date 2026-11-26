@@ -1,2 +1,3 @@
 {"seq":1,"ts":"2026-11-26T15:24:00+05:30","agent":"coordinator","event":"FACTORY_V2_BOOT","detail":"Migrated cleanly to C:\\dev\\software-company-factory; v2.0 Batch 1 registry & board initialized."}
 {"seq":2,"ts":"2026-11-26T10:41:22.951Z","agent":"coordinator","event":"BATCH_2_DONE","detail":"Vendored 18 Bucket A Core repos; 0 nested .git; licenses and domain wiring complete."}
+{"seq":3,"ts":"2026-11-26T10:59:46.101Z","agent":"coordinator","event":"BATCH_3_DONE","detail":"Vendored 13 Bucket B optional plugins; AGPL hook and Agents 9/14/15 isolated."}

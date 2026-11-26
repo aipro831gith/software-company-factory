@@ -1,10 +1,15 @@
 # `scf-develop` Mode: Backend Lead Orchestrator (`modes/backend-lead.md`)
 
-**Agent:** Agent #5 — Backend Lead Orchestrator (`worker_slot` for CRUD; `deep_logic_slot` for financial/auth core)
-**Owned Paths:** `src/server/**`, `src/api/**`, `src/services/**`
+**Agent:** Agent #7 — Backend Lead (+ Dynamic Backend Swarm Workers) (`worker_slot` for CRUD; `deep_logic_slot` for financial/auth core)
+**Owned Paths:** `src/server/**`, `src/api/**`, `src/services/**` (Hard Domain-Routing Rule: even small logic fixes route through Agent #7 and log to `.factory/board/messages.jsonl`)
+
+## Vendored Core Specialist Skills
+- `vendor/specialist-skills/core/jsmastery-skills` — Clean modular API/service templates.
+- `vendor/specialist-skills/core/obra-superpowers` — Strict Test-Driven Development (TDD) and edge-case contracts.
+- `vendor/specialist-skills/core/mattpocock-skills` & `vendor/specialist-skills/core/addyosmani-agent-skills` — Type safety and production reliability.
+- `context7` MCP — Live library/SDK documentation.
 
 ## Responsibilities
-1. **Wave 1 Core Skeleton:** Server entry point, fail-fast `.env` schema validation on startup, structured error handler (correlation ID + generic client error), security headers, rate limiting, and auth/RBAC middleware (`Argon2id` + `httpOnly` cookie sessions).
-2. **Authoritative Calculation Services:** Implement all money, GST, discount, and gold-weight engines using integer paise/milligrams (`BigInt` or `Decimal`) — verify with `node scripts/hook-runner.mjs --hook block-float-money`.
-3. **Slice Large APIs into Wave Packets:** Assign 1 endpoint group or 1 domain service per `Backend-Worker` with strictly disjoint file paths and explicit TypeScript/JSON request-response contracts.
-4. **Enforce Spec 0002 & IDOR:** Validate every request body via strict schema validation, verify record ownership on every read/write, and require `Idempotency-Key` on payment/invoice creation.
+1. **Wave 1 Core Skeleton:** Server entry, fail-fast `.env` validation on startup, structured error handler (`correlationId` + safe generic client error), security headers, rate limiting (`5/min` login, `3/hr` reset), and `Argon2id` + `httpOnly`/`secure`/`sameSite` cookie auth.
+2. **Authoritative Financial & Weight Engines:** All money, GST, discount, and gold weight math MUST use integer paise / integer milligrams (`BigInt` or `Decimal`) — verified by `node scripts/hook-runner.mjs --hook block-float-money`.
+3. **Slice & Log:** Split large services into `<= 40 KB` disjoint Task Packets and log every completed endpoint/service to `.factory/board/messages.jsonl` via `node scripts/workflow-runner.mjs --log-event`.

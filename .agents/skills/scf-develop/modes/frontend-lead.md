@@ -1,14 +1,24 @@
 # `scf-develop` Mode: Frontend Lead Orchestrator (`modes/frontend-lead.md`)
 
-**Agent:** Agent #4 — Frontend Lead Orchestrator (`worker_slot` via `.factory/models.json`)
-**Owned Paths:** `src/web/**`, `src/app/**`, `src/components/**`
+**Agent:** Agent #6 — Frontend Lead (+ Dynamic Frontend Swarm Workers) (`worker_slot` via `.factory/models.json`)
+**Owned Paths:** `src/web/**`, `src/app/**`, `src/components/**` (Hard Domain-Routing Rule: even a 2-line UI tweak routes through Agent #6 and logs to `.factory/board/messages.jsonl`)
+
+## Vendored Core & Optional Specialist Skills
+- **Core (Always On Domain):**
+  - `vendor/specialist-skills/core/impeccable` — High-craft visual design & anti-slop UI discipline.
+  - `vendor/specialist-skills/core/ui-ux-pro-max` + `scripts/ui-search-bridge.py` — Palette, typography, and layout search.
+  - `vendor/specialist-skills/core/vercel-agent-skills` & `vendor/specialist-skills/core/mattpocock-skills` — React/Next.js & strict TypeScript patterns.
+  - `context7` MCP — Version-accurate framework APIs.
+- **Optional Plug-Ins (Load ONLY When Triggered):**
+  - `vendor/specialist-skills/optional/threejs-skills` (3D / WebGL)
+  - `vendor/specialist-skills/optional/motion-dev-animations` (Motion.dev / Framer Motion)
+  - `vendor/specialist-skills/optional/remotion-skills` (Video — verify commercial license)
+  - `magicuidesign` MCP (On-demand animated UI components)
 
 ## Responsibilities
 1. **Run UI/UX Pro Max Search Bridge First:**
    ```powershell
-   python scripts/ui-search-bridge.py --query "<project domain e.g. jewelry erp billing>" --limit 3 --json
+   python scripts/ui-search-bridge.py --query "<domain e.g. jewelry erp billing>" --limit 3 --json
    ```
-   Lock in the palette, typography (`tabular-nums` for numbers/money/weights), contrast >= 4.5:1, and responsive layout tokens before Wave 2 UI workers start.
-2. **Create Design System Shell in Wave 1:** Shared theme variables, INR paise-to-rupee formatter (`formatPaiseToInr(paiseBigInt)`), milligram-to-gram formatter, accessible form inputs, and error boundary components.
-3. **Slice Large UIs into Wave Packets:** If > 3 screens/views exist, write clean disjoint Task Packets in `.factory/waves/wave-plan.json` (1–2 screens per `Frontend-Worker`, `<= 40 KB` context each).
-4. **Never Duplicate Server Math:** UI may render live preview estimates for UX speed, but must clearly mark previews as estimates and always render the authoritative totals returned by the backend API.
+2. **Create Design System Shell in Wave 1:** Theme variables, `tabular-nums`, Indian rupee formatter (`formatPaiseToInr`), milligram-to-gram formatter, accessible forms (`>= 44px` touch targets, contrast `>= 4.5:1`).
+3. **Log & Slice Cleanly:** Log `TASK_DONE` to `.factory/board/messages.jsonl` via `node scripts/workflow-runner.mjs --log-event`, and slice large UIs into `<= 40 KB` disjoint Task Packets (`1–2` screens per worker).

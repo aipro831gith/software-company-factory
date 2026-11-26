@@ -94,7 +94,7 @@ if (cmd === 'init') {
   runEnvSafetyPrecheck();
   const status = runGit(['status', '--porcelain']);
   if (status) {
-    runGit(['commit', '-m', msg]);
+    runGit(['-c', 'gc.auto=0', 'commit', '-m', msg]);
   }
   const sha = runGit(['rev-parse', '--short', 'HEAD'], REPO_ROOT, true);
   if (sha) {
@@ -129,7 +129,7 @@ if (cmd === 'commit') {
     console.log(`[OK] Nothing new to commit (HEAD=${sha}).`);
     process.exit(0);
   }
-  runGit(['commit', '-m', msg]);
+  runGit(['-c', 'gc.auto=0', 'commit', '-m', msg]);
   const sha = runGit(['rev-parse', '--short', 'HEAD']);
   updateCheckpointRecord(sha, msg, wave ? Number(wave) : null);
   if (wave) {

@@ -1,17 +1,19 @@
 # Boss 10-Second Dashboard (`STATUS.md`)
 
-**Department:** `software-company-factory` (Mother Factory v1.1)
+**Department:** `software-company-factory` (Mother Factory v2.0)
 **Session Status:** `ACTIVE` (Mode: `AUTOMATIC`)
-**Active Target Project:** *None yet — Mother Factory build in progress*
+**Active Target Project:** *None yet — v2.0 Enterprise Upgrade in progress (`C:\dev\software-company-factory`)*
 
 ---
 
 ## What Is Done Right Now (Abhi Kya Complete Hua)
 
-- **Batch 1 (Complete & Verified):** Core constitution (`AGENTS.md`), model-agnostic slot registry (`.factory/models.json`), safety config (`.factory/config.json`), department session lock (`.factory/session.lock.json`), 15 fail-closed guardrails (`.agents/hooks.json`), lean 4-MCP template, and 9 Windows/Node/Python automation scripts.
-- **Batch 2 (Complete & Verified):** Lifecycle (`/software-company-factory-start`, `/software-company-factory-end`) and Phase 0 planning skills (`scf-discover`, `scf-research`, `scf-handbook`, `scf-change-impact`) — 6/18 skills verified model-agnostic.
-- **Batch 3 (Complete & Verified):** Phase 1–3 Engineering, Wave Orchestration & QA skills (`scf-scope`, `scf-audit`, `scf-architect`, `scf-develop`, `scf-check`, `scf-test`, `scf-debug`) — 13/18 skills verified model-agnostic.
-- **Batch 4 (Complete & Verified):** Phase 4 Security (`scf-sec-ops`), Living Docs (`scf-doc-sync`), Manual Boss Deploy Gate (`scf-deploy`), and optional dormant plug-ins (`scf-legacy-re`, `scf-hardware-compliance`) — **18/18 skills verified model-agnostic**.
+- **v1.1 Baseline + GitHub Backup:** 18 skills, 15 hooks, 9 scripts, private repo pushed (`https://github.com/aipro831gith/software-company-factory`).
+- **v2.0 Batch 0 (Complete):** Safely migrated repository out of OneDrive to `C:\dev\software-company-factory`.
+- **v2.0 Batch 1 (Complete):** Added `.factory/skills-registry.json` (15 agents + 31 specialist repos), `.factory/board/messages.jsonl`, `scripts/sync-vendor-skills.ps1`, `scripts/workflow-runner.mjs`, updated `.factory/config.json` (default 3 / burst max 5 workers), lean 4-MCP `context7`+`github` template, `AGENTS.md` v2.0, and `scf-grill-me` + `scf-swarm-dispatch` (**20/20** skills).
+- **v2.0 Batch 2 (Pending):** Pre-bundle 18 Bucket A Core specialist skills into `vendor/specialist-skills/core/`.
+- **v2.0 Batch 3 (Pending):** Pre-bundle 13 Bucket B Optional plug-ins + `block-client-agpl-leak` + deepen Agents #9, #14, #15.
+- **v2.0 Batch 4 (Pending):** Build ₹0 Local Boss Mission Control Dashboard (`http://localhost:4173`), update guides, push to GitHub.
 
 ---
 

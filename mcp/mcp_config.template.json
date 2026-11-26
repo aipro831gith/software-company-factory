@@ -3,8 +3,9 @@
     "filesystem": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "${WORKSPACE_ROOT}"],
+      "auto_start": true,
       "alwaysOn": true,
-      "notes": "Scoped strictly to the active workspace directory to protect 16 GB RAM and department isolation."
+      "notes": "Always-on #1: Scoped strictly to C:\\dev\\software-company-factory or active target workspace."
     },
     "github": {
       "command": "npx",
@@ -12,21 +13,47 @@
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       },
+      "auto_start": true,
       "alwaysOn": true,
-      "notes": "Used by Agent #9 (GitHub, Version Control & Backup) for atomic backups and repo creation."
+      "notes": "Always-on #2 (github/github-mcp-server): Agent #12 automated repos, commits, PRs, and cloud backups."
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "auto_start": true,
+      "alwaysOn": true,
+      "notes": "Always-on #3 (upstash/context7): Live version-accurate library/framework documentation for Agents #2, #6, #7."
     },
     "sequential-thinking": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "auto_start": true,
       "alwaysOn": true,
-      "notes": "Lightweight structured reasoning helper for Chief Architect and Debugger."
+      "notes": "Always-on #4: Lightweight structured reasoning helper for Chief Architect and Debugger."
     },
     "playwright": {
       "command": "npx",
       "args": ["-y", "@playwright/mcp@latest"],
+      "auto_start": false,
       "alwaysOn": false,
       "onDemandOnly": true,
-      "notes": "4th slot (on-demand): enable ONLY during live browser verification (/scf-check verify) or swap for postgres MCP during DB inspection."
+      "notes": "On-demand only: enable temporarily during Agent #10 live browser verification."
+    },
+    "magicuidesign": {
+      "command": "npx",
+      "args": ["-y", "@magicuidesign/mcp@latest"],
+      "auto_start": false,
+      "alwaysOn": false,
+      "onDemandOnly": true,
+      "notes": "On-demand only: enable temporarily when Agent #6 builds animated marketing UI."
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "${DATABASE_URL}"],
+      "auto_start": false,
+      "alwaysOn": false,
+      "onDemandOnly": true,
+      "notes": "On-demand only: enable temporarily during Agent #8 database schema/query inspection."
     }
   },
   "ramPolicy": {

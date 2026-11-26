@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * check-portability.mjs
- * Validates all skills, hooks, scripts, and model-agnostic constraints for software-company-factory.
+ * check-portability.mjs (v2.0)
+ * Validates all 20 canonical skills, .factory/skills-registry.json, .factory/models.json,
+ * .factory/config.json, .agents/hooks.json, AGENTS.md size (<= 12 KB), and zero hardcoded model names.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,10 +16,12 @@ const CANONICAL_SKILLS = {
   'software-company-factory-start': ['templates/session-boot.md'],
   'software-company-factory-end': ['templates/session-handoff.md'],
   'scf-discover': ['templates/discovery-brief.md', 'references/grill-me-questions.md'],
+  'scf-grill-me': ['templates/grill-session.md', 'references/domain-edge-cases.md'],
   'scf-research': ['modes/quick.md', 'modes/deep.md', 'templates/research-brief.md'],
   'scf-handbook': ['templates/application-handbook.md'],
   'scf-change-impact': ['templates/impact-report.md'],
   'scf-scope': ['modes/tracer-bullet.md', 'modes/skateboard.md', 'modes/facade.md', 'modes/journey.md'],
+  'scf-swarm-dispatch': ['modes/native-swarm.md', 'modes/free-plan-fallback.md', 'templates/board-event.json'],
   'scf-audit': ['references/clean-arch.md', 'references/ddd.md', 'references/functional.md', 'references/solid-oop.md'],
   'scf-architect': ['modes/new-feature.md', 'modes/stack-selection.md', 'templates/plain-english-spec.md', 'references/value-sourcing.md'],
   'scf-develop': ['modes/frontend-lead.md', 'modes/backend-lead.md', 'modes/database-builder.md', 'modes/wave-worker.md', 'references/ui-ux-pro-max.md'],
@@ -42,7 +45,6 @@ const args = new Set(process.argv.slice(2));
 const REQUIRE_ALL = args.has('--require-all');
 const JSON_MODE = args.has('--json');
 
-// Construct forbidden hardcoded vendor model patterns dynamically so this file does not self-match
 const FORBIDDEN_MODEL_REGEXES = [
   new RegExp(['gem', 'ini-[0-9]'].join(''), 'i'),
   new RegExp(['gem', 'ini\\s+[0-9]'].join(''), 'i'),
@@ -121,9 +123,20 @@ function checkPosixGlueInCodeBlocks(filePath, content) {
   }
 }
 
-// 1. Validate core config & hooks
+// 1. Validate core config, models, registry & AGENTS.md size
+const agentsMdPath = path.join(REPO_ROOT, 'AGENTS.md');
+if (!fs.existsSync(agentsMdPath)) {
+  addError('Missing AGENTS.md');
+} else {
+  const agentsBytes = fs.statSync(agentsMdPath).size;
+  if (agentsBytes > 12288) {
+    addError(`AGENTS.md is ${agentsBytes} bytes (hard cap 12,288 bytes).`);
+  }
+}
+
 const configPath = path.join(REPO_ROOT, '.factory', 'config.json');
 const modelsPath = path.join(REPO_ROOT, '.factory', 'models.json');
+const registryPath = path.join(REPO_ROOT, '.factory', 'skills-registry.json');
 const hooksPath = path.join(REPO_ROOT, '.agents', 'hooks.json');
 
 let config = {
@@ -164,6 +177,24 @@ if (!fs.existsSync(modelsPath)) {
   }
 }
 
+if (!fs.existsSync(registryPath)) {
+  addError('Missing .factory/skills-registry.json');
+} else {
+  try {
+    const reg = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+    if (!Array.isArray(reg.agents) || reg.agents.length !== 15) {
+      addError(`.factory/skills-registry.json must define 15 dedicated agents (found ${reg.agents ? reg.agents.length : 0})`);
+    }
+    const coreCount = reg.specialist_repos?.bucket_a_core?.length ?? 0;
+    const optCount = reg.specialist_repos?.bucket_b_optional?.length ?? 0;
+    if (coreCount < 18 || optCount < 13) {
+      addError(`.factory/skills-registry.json expected >=18 core and >=13 optional repos (found ${coreCount}/${optCount})`);
+    }
+  } catch (e) {
+    addError(`Invalid JSON in .factory/skills-registry.json: ${e.message}`);
+  }
+}
+
 if (!fs.existsSync(hooksPath)) {
   addError('Missing .agents/hooks.json');
 } else {
@@ -171,8 +202,8 @@ if (!fs.existsSync(hooksPath)) {
     const rawHooks = fs.readFileSync(hooksPath, 'utf8');
     checkModelAgnostic(hooksPath, rawHooks);
     const hooksObj = JSON.parse(rawHooks);
-    if (!Array.isArray(hooksObj.hooks) || hooksObj.hooks.length !== 15) {
-      addError(`.agents/hooks.json must contain exactly 15 fail-closed hooks (found ${hooksObj.hooks ? hooksObj.hooks.length : 0})`);
+    if (!Array.isArray(hooksObj.hooks) || hooksObj.hooks.length < 15) {
+      addError(`.agents/hooks.json must contain at least 15 fail-closed hooks (found ${hooksObj.hooks ? hooksObj.hooks.length : 0})`);
     } else {
       for (const h of hooksObj.hooks) {
         if (h.fail_closed !== true) {
@@ -199,20 +230,21 @@ if (fs.existsSync(scriptsDir)) {
   }
 }
 
-// 3. Validate skills in .agents/skills/
+// 3. Validate canonical skills in .agents/skills/
 const skillsRoot = path.join(REPO_ROOT, '.agents', 'skills');
 const minBytes = config.skill_validation?.skill_min_bytes ?? 4096;
 const maxBytes = config.skill_validation?.skill_max_bytes ?? 32768;
 const subMaxBytes = config.skill_validation?.subfile_max_bytes ?? 24576;
 const descMaxChars = config.skill_validation?.description_max_chars ?? 400;
 const hotPathMaxBytes = (config.hardware_envelope?.hot_path_context_budget_kb ?? 90) * 1024;
+const totalCanonical = Object.keys(CANONICAL_SKILLS).length;
 
 if (fs.existsSync(skillsRoot)) {
   const dirs = fs.readdirSync(skillsRoot, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
 
   for (const dirName of dirs) {
     if (!Object.prototype.hasOwnProperty.call(CANONICAL_SKILLS, dirName)) {
-      addError(`Unknown skill folder ".agents/skills/${dirName}" is not in the 18 canonical skills.`);
+      addError(`Unknown skill folder ".agents/skills/${dirName}" is not in the ${totalCanonical} canonical skills.`);
       continue;
     }
 
@@ -297,21 +329,17 @@ if (fs.existsSync(skillsRoot)) {
   const missingCanonical = Object.keys(CANONICAL_SKILLS).filter((k) => !dirs.includes(k));
   if (missingCanonical.length > 0) {
     const msg = `${missingCanonical.length} canonical skills not yet created: ${missingCanonical.join(', ')}`;
-    if (REQUIRE_ALL) {
-      addError(msg);
-    } else {
-      warnings.push(msg);
-    }
+    if (REQUIRE_ALL) addError(msg);
+    else warnings.push(msg);
   }
 } else if (REQUIRE_ALL) {
   addError('Directory .agents/skills/ does not exist.');
-} else {
-  warnings.push('No skills created yet under .agents/skills/ (Batch 1 foundation mode).');
 }
 
 const result = {
   status: errors.length === 0 ? 'PASS' : 'FAIL',
   checked_skills_count: checkedSkills.length,
+  total_canonical_skills: totalCanonical,
   checked_skills: checkedSkills,
   warnings,
   errors,
@@ -320,17 +348,13 @@ const result = {
 if (JSON_MODE) {
   console.log(JSON.stringify(result, null, 2));
 } else {
-  console.log(`=== check-portability.mjs :: ${result.status} ===`);
-  console.log(`Validated skills: ${checkedSkills.length}/18`);
+  console.log(`=== check-portability.mjs (v2.0) :: ${result.status} ===`);
+  console.log(`Validated skills: ${checkedSkills.length}/${totalCanonical}`);
   for (const s of checkedSkills) {
     console.log(`  [OK] ${s.name} (SKILL.md=${s.skillBytes}B, hotPath=${s.totalHotPathBytes}B, subFiles=${s.subFiles})`);
   }
-  for (const w of warnings) {
-    console.log(`  [WARN] ${w}`);
-  }
-  for (const e of errors) {
-    console.error(`  [FAIL] ${e}`);
-  }
+  for (const w of warnings) console.log(`  [WARN] ${w}`);
+  for (const e of errors) console.error(`  [FAIL] ${e}`);
 }
 
 process.exit(errors.length === 0 ? 0 : 1);

@@ -1,0 +1,16 @@
+name: scf-swarm-dispatch
+version: 2.0.0
+display_name: Hybrid Swarm & Workflow Dispatcher
+description: Coordinates native /swarm parallel workers (3-5 max, <=40KB slices) plus free-plan-proof workflow-runner.mjs fallback and board logging.
+default_model_slot: architect_slot
+worker_dispatch_slot: worker_slot
+model_registry: .factory/models.json
+invocation:
+  slash_command: /scf-swarm-dispatch
+  fallback_for:
+    - /swarm
+    - /run-workflow
+    - /teamwork
+  writes_only:
+    - .factory/waves/
+    - .factory/board/

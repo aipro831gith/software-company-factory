@@ -1,8 +1,8 @@
 # Latest Session Handoff (`docs/handoff/LATEST_SESSION.md`)
 
 - **Department:** `software-company-factory`
-- **Session State:** `ACTIVE` (Mother Factory Build — All 4 Batches Complete & Verified)
-- **Last Completed:** Batch 4 Security (`scf-sec-ops`), Doc Sync (`scf-doc-sync`), Manual Release Gate (`scf-deploy`), and dormant plug-ins (`scf-legacy-re`, `scf-hardware-compliance`) built and verified (`18/18` skills).
+- **Session State:** `ACTIVE` (Mother Factory v2.0 Upgrade — Batch 1 Complete)
+- **Last Completed:** Batch 1 modular registry (`.factory/skills-registry.json`), board log (`.factory/board/messages.jsonl`), `sync-vendor-skills.ps1`, `workflow-runner.mjs`, `AGENTS.md` v2.0, and `scf-grill-me` + `scf-swarm-dispatch` (**20/20** skills).
 - **Open Bug Tickets:** None
-- **Last Passing Gate:** `Batch 4` (`check-portability.mjs --require-all` 18/18 PASS + `hook-runner.mjs --self-test` 14/14 PASS)
-- **Exact Next Step:** Run the 30-minute Smoke Test (`smoke-gold-calc`) via `/software-company-factory-start` before building Father's Jewelry Business ERP.
+- **Last Passing Gate:** `v2.0 Batch 1` (`check-portability.mjs --require-all` 20/20 PASS + `workflow-runner.mjs --self-test` PASS + `hook-runner.mjs --self-test` 14/14 PASS)
+- **Exact Next Step:** Wait for `"Proceed to Batch 2"` from Founder to pre-bundle the 18 Bucket A Core specialist repos into `vendor/specialist-skills/core/`.

@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "factory_name": "software-company-factory",
-  "factory_version": "1.1.0",
+  "factory_version": "2.0.0",
   "platform": {
     "os": "windows",
     "primary_shell": "powershell",
@@ -11,13 +11,33 @@
   "hardware_envelope": {
     "ram_gb": 16,
     "peak_ram_target_gb": 11.5,
-    "max_concurrent_workers_per_wave": 3,
+    "default_concurrent_workers_per_wave": 3,
+    "max_concurrent_workers_per_wave": 5,
     "max_always_on_mcps": 4,
     "worker_context_budget_kb": 40,
     "hot_path_context_budget_kb": 90
   },
+  "agent_architecture": {
+    "permanent_specialist_agents": 15,
+    "strict_domain_routing": true,
+    "require_board_log_on_mutation": true,
+    "board_log_path": ".factory/board/messages.jsonl"
+  },
+  "communication_policy": {
+    "boss_language": "hinglish_or_simple_indian_english",
+    "caveman_mode": {
+      "enabled_for_internal_agent_handoffs": true,
+      "enabled_for_swarm_board": true,
+      "banned_on_boss_facing_text": true
+    }
+  },
+  "legal_and_ram_isolation": {
+    "internal_audit_only_repos": ["trailofbits/skills"],
+    "standalone_only_repos": ["usestrix/strix"],
+    "commercial_license_review_repos": ["remotion-dev/skills"]
+  },
   "skill_validation": {
-    "canonical_skill_count": 18,
+    "canonical_skill_count": 20,
     "skill_min_bytes": 4096,
     "skill_target_min_bytes": 8192,
     "skill_max_bytes": 32768,

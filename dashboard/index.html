@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boss Mission Control — software-company-factory v2.0</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">SCF</div>
+      <div>
+        <h1>Boss Mission Control <span style="font-weight:500;color:var(--text-muted)">v2.0</span></h1>
+        <div class="brand-sub" id="subtitle">Loading factory state...</div>
+      </div>
+    </div>
+    <div class="topbar-controls">
+      <span id="sse-pill" class="pill live"><span class="dot pulse"></span>LIVE SSE SYNC</span>
+      <span id="session-pill" class="pill">Session: ...</span>
+      <button class="btn" id="theme-btn" type="button" title="Switch Light / Dark theme">Dark Mode</button>
+      <button class="btn" id="refresh-btn" type="button" title="Force refresh snapshot from disk">Refresh</button>
+      <button class="btn primary" id="run-portability-btn" type="button">Run 20/20 Check</button>
+      <button class="btn" id="run-hooks-btn" type="button">Run 16 Hook Tests</button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <nav class="tabs" role="tablist">
+      <button class="tab-btn active" data-tab="overview">Mission Overview</button>
+      <button class="tab-btn" data-tab="agents">15 Specialist Agents</button>
+      <button class="tab-btn" data-tab="gates">Gate Proofs &amp; 16 Hooks</button>
+      <button class="tab-btn" data-tab="board">Live Swarm Board &amp; Tickets</button>
+      <button class="tab-btn" data-tab="registry">31 Specialist Registry</button>
+    </nav>
+
+    <!-- KPI STRIP -->
+    <section class="kpi-grid">
+      <div class="card kpi-card">
+        <div>
+          <div class="kpi-label">Overall Completion</div>
+          <div class="kpi-value" id="kpi-pct">100%</div>
+          <div class="kpi-meta" id="kpi-pct-sub">Mother Factory Baseline</div>
+        </div>
+        <svg width="58" height="58" viewBox="0 0 60 60" aria-hidden="true">
+          <circle cx="30" cy="30" r="24" fill="none" stroke="var(--surface-subtle)" stroke-width="6"></circle>
+          <circle id="kpi-ring" cx="30" cy="30" r="24" fill="none" stroke="var(--accent)" stroke-width="6"
+                  stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="0"
+                  transform="rotate(-90 30 30)"></circle>
+        </svg>
+      </div>
+      <div class="card kpi-card">
+        <div>
+          <div class="kpi-label">Dedicated Specialists</div>
+          <div class="kpi-value" id="kpi-agents">15 / 15</div>
+          <div class="kpi-meta" id="kpi-agents-sub">Concurrency: 3 default (max 5)</div>
+        </div>
+      </div>
+      <div class="card kpi-card">
+        <div>
+          <div class="kpi-label">Verified Gates &amp; Hooks</div>
+          <div class="kpi-value" id="kpi-hooks">16 Hooks</div>
+          <div class="kpi-meta" id="kpi-gates-sub">0 open blocker tickets</div>
+        </div>
+      </div>
+      <div class="card kpi-card">
+        <div>
+          <div class="kpi-label">Avg Step Time &amp; Git</div>
+          <div class="kpi-value" id="kpi-git">main</div>
+          <div class="kpi-meta" id="kpi-avg-sub">Rs 0 cost | Zero LLM calls</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: OVERVIEW -->
+    <section id="tab-overview" class="tab-panel">
+      <div class="two-col">
+        <div class="card">
+          <div class="section-head">
+            <h2>Live Verification Console (Real Exit Codes Only)</h2>
+            <div class="toolbar">
+              <button class="btn" id="btn-wf-status" type="button">Workflow Status</button>
+              <button class="btn" id="btn-port-inline" type="button">Check Portability</button>
+              <button class="btn" id="btn-hooks-inline" type="button">Run Hook Self-Test</button>
+            </div>
+          </div>
+          <div id="console-meta" class="kpi-meta" style="margin-bottom:8px;">Click any button above to run a real local check and inspect its exact exit code.</div>
+          <div id="console-output" class="terminal-box">Ready. Zero LLM tokens used by this dashboard (pure Node.js local file watcher + SSE).</div>
+        </div>
+
+        <div class="card">
+          <div class="section-head">
+            <h2>Live Board Stream (`.factory/board/messages.jsonl`)</h2>
+            <span class="pill" id="board-count">0 events</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input id="boss-note-input" class="input" style="flex:1;min-width:0;" type="text" placeholder="Post a note or Boss approval to live board..." />
+            <button id="boss-note-btn" class="btn primary" type="button">Send</button>
+          </div>
+          <div id="overview-feed" class="feed-list"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2>Active Model Slots (`.factory/models.json` — Hot-Swappable Anytime)</h2>
+          <span class="pill" id="routing-pill">FOUNDER_OVERRIDE_ALLOWED</span>
+        </div>
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr><th>Abstract Slot</th><th>Primary Preset</th><th>Secondary / Fallback</th><th>Purpose</th></tr>
+            </thead>
+            <tbody id="models-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: 15 AGENTS -->
+    <section id="tab-agents" class="tab-panel hidden">
+      <div class="card">
+        <div class="section-head">
+          <h2>15 Dedicated Specialist Agents (Click Any Agent to Inspect Ownership &amp; Skills)</h2>
+          <div class="toolbar">
+            <input id="agent-search" class="input" type="search" placeholder="Filter by agent, department, or skill..." />
+            <select id="dept-filter" class="input" style="min-width:150px;">
+              <option value="ALL">All Departments</option>
+              <option value="Front Desk">Front Desk</option>
+              <option value="Command">Command</option>
+              <option value="Builders">Builders</option>
+              <option value="Security">Security</option>
+              <option value="Quality">Quality</option>
+              <option value="Integrity">Integrity</option>
+              <option value="Release">Release</option>
+              <option value="Modernize">Modernize</option>
+              <option value="Hardware">Hardware</option>
+            </select>
+          </div>
+        </div>
+        <div id="agents-grid" class="agents-grid"></div>
+      </div>
+    </section>
+
+    <!-- TAB: GATES & HOOKS -->
+    <section id="tab-gates" class="tab-panel hidden">
+      <div class="two-col">
+        <div class="card">
+          <div class="section-head">
+            <h2>Feature Gate Proofs (`.factory/gates/*.gate.json`)</h2>
+            <span class="pill" id="gates-pill">0 gates</span>
+          </div>
+          <div id="gates-container"></div>
+        </div>
+        <div class="card">
+          <div class="section-head">
+            <h2>16 Fail-Closed Guardrail Hooks (`.agents/hooks.json`)</h2>
+            <span class="pill live">All Fail-Closed</span>
+          </div>
+          <div style="overflow:auto;max-height:460px;">
+            <table>
+              <thead><tr><th>Hook ID</th><th>Event</th><th>Guardrail</th></tr></thead>
+              <tbody id="hooks-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: BOARD & TICKETS -->
+    <section id="tab-board" class="tab-panel hidden">
+      <div class="two-col">
+        <div class="card">
+          <div class="section-head">
+            <h2>Full Live Swarm &amp; Coordinator Board</h2>
+            <input id="board-filter" class="input" type="search" placeholder="Search board events..." />
+          </div>
+          <div id="full-board-feed" class="feed-list" style="max-height:520px;"></div>
+        </div>
+        <div class="card">
+          <div class="section-head">
+            <h2>Auto-Fix Bug Tickets (`.factory/tickets/BUG-*.json`)</h2>
+            <span class="pill" id="tickets-pill">0 tickets</span>
+          </div>
+          <div id="tickets-container"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: REGISTRY -->
+    <section id="tab-registry" class="tab-panel hidden">
+      <div class="card">
+        <div class="section-head">
+          <h2>Plug-and-Play 31 Specialist Repos (`.factory/skills-registry.json`)</h2>
+          <div class="toolbar">
+            <input id="registry-search" class="input" type="search" placeholder="Search repo, license, or agent..." />
+            <select id="bucket-filter" class="input" style="min-width:170px;">
+              <option value="ALL">All 31 Repos</option>
+              <option value="core">Bucket A — 18 Core</option>
+              <option value="optional">Bucket B — 13 Optional</option>
+            </select>
+          </div>
+        </div>
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr><th>Bucket</th><th>Repository</th><th>Load Mode</th><th>License</th><th>Agents</th><th>Client Repo Safe</th></tr>
+            </thead>
+            <tbody id="registry-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- AGENT DETAIL DRAWER -->
+  <div id="drawer-backdrop" class="drawer-backdrop" role="dialog" aria-modal="true">
+    <div class="drawer">
+      <div class="section-head">
+        <h2 id="drawer-title">Agent Details</h2>
+        <button id="drawer-close" class="btn" type="button">Close</button>
+      </div>
+      <div id="drawer-body"></div>
+    </div>
+  </div>
+
+  <script>
+    const stateStore = { data: null, activeTab: 'overview' };
+
+    const slotPurposes = {
+      light_ops_slot: 'STATUS.md updates, Discovery, Docs, Vibe copy edits',
+      worker_slot: 'Frontend, Backend, Database & QA everyday coding',
+      architect_slot: 'System architecture, stack choice, Dual Plain-English Specs',
+      deep_logic_slot: 'Financial/GST math, Cybersecurity, Root-Cause Debugging',
+      blind_reviewer_slot: 'Fresh zero-history Full-tier independent code review'
+    };
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function pillClass(status) {
+      const st = String(status || '').toUpperCase();
+      if (['ACTIVE', 'PASS', 'DONE', 'RESOLVED'].includes(st)) return 'pill live';
+      if (['WORKING', 'PENDING', 'OPEN', 'IDLE'].includes(st)) return 'pill warn';
+      if (['FAIL', 'BLOCKED', 'ENDED'].includes(st)) return 'pill fail';
+      return 'pill';
+    }
+
+    // Theme toggle persisted in localStorage (UI preference only, zero PII)
+    const themeBtn = document.getElementById('theme-btn');
+    const savedTheme = localStorage.getItem('scf_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    themeBtn.textContent = savedTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+    themeBtn.addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme');
+      const next = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('scf_theme', next);
+      themeBtn.textContent = next === 'dark' ? 'Light Mode' : 'Dark Mode';
+    });
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        stateStore.activeTab = tab;
+        document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('hidden', p.id !== `tab-${tab}`));
+      });
+    });
+
+    // Drawer controls
+    const drawerBackdrop = document.getElementById('drawer-backdrop');
+    document.getElementById('drawer-close').addEventListener('click', () => drawerBackdrop.classList.remove('open'));
+    drawerBackdrop.addEventListener('click', (e) => {
+      if (e.target === drawerBackdrop) drawerBackdrop.classList.remove('open');
+    });
+
+    function openAgentDrawer(agent) {
+      document.getElementById('drawer-title').textContent = `Agent #${agent.id}: ${agent.name}`;
+      const reposHtml = (agent.vendoredRepos || []).length
+        ? agent.vendoredRepos.map((r) => `<li><code>${esc(r.id)}</code> — <span class="pill">${esc(r.load_mode)}</span> ${r.client_repo_allowed === false ? '<span class="pill fail">INTERNAL AUDIT ONLY</span>' : ''}</li>`).join('')
+        : '<li>Uses factory built-in workflow skills</li>';
+      document.getElementById('drawer-body').innerHTML = `
+        <p><span class="${pillClass(agent.status)}">${esc(agent.status)}</span> &nbsp; <span class="pill">${esc(agent.department)}</span></p>
+        <p><strong>Current Task:</strong> ${esc(agent.currentTask)}</p>
+        <p><strong>Exclusive Owned Paths:</strong><br/>${(agent.owns || []).map((o) => `<code>${esc(o)}</code>`).join(' ')}</p>
+        <p><strong>Assigned Factory Skills:</strong><br/>${(agent.skills || []).map((s) => `<code>${esc(s)}</code>`).join(' ')}</p>
+        <p><strong>Vendored Specialist Repos (${(agent.vendoredRepos || []).length}):</strong></p>
+        <ul style="padding-left:18px;line-height:1.8;">${reposHtml}</ul>
+      `;
+      drawerBackdrop.classList.add('open');
+    }
+
+    function renderAgents() {
+      const d = stateStore.data;
+      if (!d) return;
+      const q = (document.getElementById('agent-search').value || '').toLowerCase();
+      const dept = document.getElementById('dept-filter').value;
+      const filtered = (d.agents || []).filter((a) => {
+        if (dept !== 'ALL' && a.department !== dept) return false;
+        if (!q) return true;
+        return JSON.stringify(a).toLowerCase().includes(q);
+      });
+      const grid = document.getElementById('agents-grid');
+      grid.innerHTML = '';
+      for (const a of filtered) {
+        const el = document.createElement('div');
+        el.className = 'agent-card';
+        el.innerHTML = `
+          <div class="agent-top">
+            <span class="agent-num">AGENT #${a.id} · ${esc(a.department)}</span>
+            <span class="${pillClass(a.status)}">${esc(a.status)}</span>
+          </div>
+          <div class="agent-name">${esc(a.name)}</div>
+          <div class="agent-task">${esc(a.currentTask)}</div>
+          <div class="progress-track"><div class="progress-fill" style="width:${a.progressPct}%"></div></div>
+          <div class="kpi-meta" style="margin-top:6px;display:flex;justify-content:space-between;">
+            <span>${(a.vendoredRepos || []).length} vendored tool(s)</span>
+            <strong>${a.progressPct}%</strong>
+          </div>
+        `;
+        el.addEventListener('click', () => openAgentDrawer(a));
+        grid.appendChild(el);
+      }
+    }
+
+    function renderRegistry() {
+      const d = stateStore.data;
+      if (!d) return;
+      const q = (document.getElementById('registry-search').value || '').toLowerCase();
+      const b = document.getElementById('bucket-filter').value;
+      const core = (d.registry?.specialist_repos?.bucket_a_core || []).map((r) => ({ ...r, bucket: 'core', label: 'Bucket A (Core)' }));
+      const opt = (d.registry?.specialist_repos?.bucket_b_optional || []).map((r) => ({ ...r, bucket: 'optional', label: 'Bucket B (Optional)' }));
+      const rows = [...core, ...opt].filter((r) => {
+        if (b !== 'ALL' && r.bucket !== b) return false;
+        if (!q) return true;
+        return JSON.stringify(r).toLowerCase().includes(q);
+      });
+      document.getElementById('registry-tbody').innerHTML = rows.map((r) => `
+        <tr>
+          <td><span class="pill ${r.bucket === 'core' ? 'live' : ''}">${esc(r.label)}</span></td>
+          <td><strong>${esc(r.id)}</strong><br/><span class="kpi-meta">${esc(r.path)}</span></td>
+          <td><code>${esc(r.load_mode)}</code></td>
+          <td>${esc(r.license)}</td>
+          <td>${(r.assigned_agents || []).map((id) => `#${id}`).join(', ')}</td>
+          <td>${r.client_repo_allowed === false ? '<span class="pill fail">INTERNAL ONLY</span>' : '<span class="pill live">ALLOWED</span>'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderBoardFeed(targetId, messages, filterText = '') {
+      const q = filterText.toLowerCase();
+      const items = [...messages].reverse().filter((m) => !q || JSON.stringify(m).toLowerCase().includes(q));
+      const el = document.getElementById(targetId);
+      if (!items.length) {
+        el.innerHTML = '<div class="kpi-meta">No board events matching filter.</div>';
+        return;
+      }
+      el.innerHTML = items.map((m) => `
+        <div class="feed-item">
+          <div class="feed-meta">
+            <span>#${esc(m.seq)} · <strong>${esc(m.agent)}</strong> · <code>${esc(m.event)}</code></span>
+            <span>${esc((m.ts || '').replace('T', ' ').slice(0, 19))}</span>
+          </div>
+          <div>${esc(m.detail)}</div>
+        </div>
+      `).join('');
+    }
+
+    function render(data) {
+      stateStore.data = data;
+      const sess = data.session || {};
+      const m = data.metrics || {};
+
+      document.getElementById('subtitle').textContent =
+        `Workspace: ${data.repoRoot} | Platform: ${data.platform} | Target: ${sess.active_target_project || 'Mother Factory'}`;
+      const sp = document.getElementById('session-pill');
+      sp.className = pillClass(sess.status);
+      sp.textContent = `Session: ${sess.status || 'UNKNOWN'} (${sess.mode || 'AUTO'})`;
+
+      document.getElementById('kpi-pct').textContent = `${m.overallPct ?? 100}%`;
+      document.getElementById('kpi-pct-sub').textContent = m.totalTasks > 0 ? `${m.completedTasks}/${m.totalTasks} wave tasks done` : 'Mother Factory 100% Ready';
+      const offset = 150.8 * (1 - ((m.overallPct ?? 100) / 100));
+      document.getElementById('kpi-ring').setAttribute('stroke-dashoffset', offset.toFixed(1));
+
+      const defaultW = data.config?.hardware_envelope?.default_concurrent_workers_per_wave ?? 3;
+      const burstW = data.config?.hardware_envelope?.max_concurrent_workers_per_wave ?? 5;
+      document.getElementById('kpi-agents').textContent = `${(data.agents || []).length} / 15`;
+      document.getElementById('kpi-agents-sub').textContent = `Concurrency: ${defaultW} default (burst ${burstW})`;
+
+      document.getElementById('kpi-hooks').textContent = `${(data.hooks || []).length} Hooks`;
+      document.getElementById('kpi-gates-sub').textContent = `${m.passGates}/${m.totalGates} feature gates | ${m.openBugs} open bugs`;
+
+      document.getElementById('kpi-git').textContent = `${data.git?.branch || 'main'} @ ${data.git?.sha || '-'}`;
+      document.getElementById('kpi-avg-sub').textContent =
+        (m.avgEventGapSeconds !== null ? `Avg step gap: ${m.avgEventGapSeconds}s | ` : '') + (data.git?.clean ? 'Tree CLEAN' : 'Uncommitted changes');
+
+      document.getElementById('board-count').textContent = `${(data.boardMessages || []).length} events`;
+      renderBoardFeed('overview-feed', data.boardMessages || []);
+      renderBoardFeed('full-board-feed', data.boardMessages || [], document.getElementById('board-filter').value);
+
+      // Models table
+      const slots = data.models?.slots || {};
+      document.getElementById('routing-pill').textContent = data.models?.routing_mode || 'DYNAMIC';
+      document.getElementById('models-tbody').innerHTML = Object.entries(slots).map(([name, cfg]) => `
+        <tr>
+          <td><code>${esc(name)}</code></td>
+          <td>${esc(cfg.primary?.model || '-')} (${esc(cfg.primary?.effort || '-')})</td>
+          <td>${esc(cfg.secondary?.model || cfg.fallback?.model || '-')}</td>
+          <td>${esc(slotPurposes[name] || '')}</td>
+        </tr>
+      `).join('');
+
+      // Gates
+      document.getElementById('gates-pill').textContent = `${(data.gates || []).length} gate file(s)`;
+      document.getElementById('gates-container').innerHTML = (data.gates || []).length
+        ? data.gates.map((g) => `
+            <div class="feed-item" style="margin-bottom:8px;">
+              <div class="feed-meta"><strong>${esc(g.file)}</strong><span class="${pillClass(g.status)}">${esc(g.status)}</span></div>
+              <div>Tier: <code>${esc(g.tier)}</code> | Checks: <strong>${esc(g.checks_passed)}</strong> | Spec: <code>${esc(g.spec_status)}</code></div>
+            </div>`).join('')
+        : '<div class="kpi-meta">No target project feature gates yet. Run the 30-minute Smoke Test or use the live Run Check buttons to verify Mother Factory scripts.</div>';
+
+      // Hooks
+      document.getElementById('hooks-tbody').innerHTML = (data.hooks || []).map((h) => `
+        <tr><td><code>${esc(h.id)}</code></td><td><code>${esc(h.event)}</code></td><td>${esc(h.description)}</td></tr>
+      `).join('');
+
+      // Tickets
+      document.getElementById('tickets-pill').textContent = `${(data.tickets || []).length} ticket(s)`;
+      document.getElementById('tickets-container').innerHTML = (data.tickets || []).length
+        ? data.tickets.map((t) => `
+            <div class="feed-item" style="margin-bottom:8px;">
+              <div class="feed-meta"><strong>${esc(t.ticket_id || t.file)}</strong><span class="${pillClass(t.status)}">${esc(t.status)}</span></div>
+              <div>Owner: <code>${esc(t.owner_agent)}</code> | Attempts: <strong>${esc(t.attempt_count)}/${esc(t.max_attempts)}</strong></div>
+              <div class="kpi-meta">${esc(t.actual || t.expected || '')}</div>
+            </div>`).join('')
+        : '<div class="kpi-meta">Zero open bug tickets — factory is healthy.</div>';
+
+      if (data.lastCheckRun) {
+        const r = data.lastCheckRun;
+        document.getElementById('console-meta').innerHTML =
+          `Last run: <code>${esc(r.command)}</code> · <span class="${r.exitCode === 0 ? 'pill live' : 'pill fail'}">EXIT ${r.exitCode}</span> · ${r.durationMs}ms`;
+        document.getElementById('console-output').textContent = r.output;
+      }
+
+      renderAgents();
+      renderRegistry();
+    }
+
+    async function runEndpoint(url, btn) {
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Running...';
+      document.getElementById('console-meta').textContent = `Executing ${url}...`;
+      try {
+        const res = await fetch(url, { method: 'POST' });
+        const result = await res.json();
+        document.getElementById('console-meta').innerHTML =
+          `Command: <code>${esc(result.command)}</code> · <span class="${result.exitCode === 0 ? 'pill live' : 'pill fail'}">EXIT ${result.exitCode}</span> · ${result.durationMs}ms`;
+        document.getElementById('console-output').textContent = result.output || '(no output)';
+      } catch (e) {
+        document.getElementById('console-output').textContent = 'Error: ' + e.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    }
+
+    document.getElementById('run-portability-btn').addEventListener('click', (e) => runEndpoint('/api/run/portability', e.currentTarget));
+    document.getElementById('btn-port-inline').addEventListener('click', (e) => runEndpoint('/api/run/portability', e.currentTarget));
+    document.getElementById('run-hooks-btn').addEventListener('click', (e) => runEndpoint('/api/run/hooks-self-test', e.currentTarget));
+    document.getElementById('btn-hooks-inline').addEventListener('click', (e) => runEndpoint('/api/run/hooks-self-test', e.currentTarget));
+    document.getElementById('btn-wf-status').addEventListener('click', (e) => runEndpoint('/api/run/workflow-status', e.currentTarget));
+
+    document.getElementById('refresh-btn').addEventListener('click', async () => {
+      const res = await fetch('/api/state');
+      render(await res.json());
+    });
+
+    document.getElementById('boss-note-btn').addEventListener('click', async () => {
+      const inp = document.getElementById('boss-note-input');
+      const text = inp.value.trim();
+      if (!text) return;
+      await fetch('/api/board', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent: 'founder', event: 'BOSS_NOTE', detail: text }),
+      });
+      inp.value = '';
+    });
+
+    document.getElementById('agent-search').addEventListener('input', renderAgents);
+    document.getElementById('dept-filter').addEventListener('change', renderAgents);
+    document.getElementById('registry-search').addEventListener('input', renderRegistry);
+    document.getElementById('bucket-filter').addEventListener('change', renderRegistry);
+    document.getElementById('board-filter').addEventListener('input', () => {
+      if (stateStore.data) renderBoardFeed('full-board-feed', stateStore.data.boardMessages || [], document.getElementById('board-filter').value);
+    });
+
+    // Live SSE connection (<100ms latency)
+    function connectSSE() {
+      const pill = document.getElementById('sse-pill');
+      const es = new EventSource('/api/events');
+      es.addEventListener('state', (ev) => {
+        const msg = JSON.parse(ev.data);
+        render(msg.state);
+        pill.className = 'pill live';
+        pill.innerHTML = '<span class="dot pulse"></span>LIVE SSE SYNC';
+      });
+      es.onerror = () => {
+        pill.className = 'pill warn';
+        pill.innerHTML = '<span class="dot"></span>RECONNECTING...';
+      };
+    }
+
+    fetch('/api/state').then((r) => r.json()).then(render);
+    connectSSE();
+  </script>
+</body>
+</html>

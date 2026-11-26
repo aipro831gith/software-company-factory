@@ -1,1196 +1,195 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Software Company Factory — Founder &amp; Client Guide</title>
+  <title>software-company-factory v2.0 — Founder &amp; Client Guide</title>
   <style>
     :root {
-      --bg: #f8fafc;
+      --bg: #f6f7f9;
       --surface: #ffffff;
-      --surface-alt: #f1f5f9;
-      --ink: #0f172a;
-      --ink-muted: #475569;
-      --border: #e2e8f0;
-      --primary: #2563eb;
-      --primary-dark: #1d4ed8;
-      --primary-soft: #eff6ff;
-      --accent: #7c3aed;
-      --accent-soft: #f5f3ff;
-      --success: #059669;
-      --success-soft: #ecfdf5;
-      --warn: #d97706;
-      --warn-soft: #fffbeb;
-      --danger: #dc2626;
-      --danger-soft: #fef2f2;
-      --dark-bg: #0f172a;
-      --dark-card: #1e293b;
-      --radius: 12px;
-      --shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+      --subtle: #f0f2f5;
+      --border: #e2e6ed;
+      --text: #0f172a;
+      --muted: #526075;
+      --accent: #0f4c81;
+      --green: #0f7b4c;
+      --green-bg: #e6f6ee;
+      --amber: #b45309;
+      --amber-bg: #fef3c7;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Arial, sans-serif;
     }
-
+    [data-theme="dark"] {
+      --bg: #0b0f17;
+      --surface: #121824;
+      --subtle: #182030;
+      --border: #243044;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #34d399;
+      --green-bg: rgba(52, 211, 153, 0.14);
+      --amber: #fbbf24;
+      --amber-bg: rgba(251, 191, 36, 0.14);
+    }
     * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: var(--bg);
-      color: var(--ink);
-      line-height: 1.65;
-      font-size: 15px;
-    }
-
-    /* Header / Hero */
-    .hero {
-      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #312e81 100%);
-      color: #ffffff;
-      padding: 48px 24px 40px;
-      border-bottom: 4px solid #3b82f6;
-    }
-    .hero-inner {
-      max-width: 1180px;
-      margin: 0 auto;
-    }
-    .hero-badge {
-      display: inline-block;
-      background: rgba(59, 130, 246, 0.25);
-      border: 1px solid rgba(147, 197, 253, 0.45);
-      color: #dbeafe;
-      padding: 4px 12px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      margin-bottom: 14px;
-    }
-    .hero h1 {
-      margin: 0 0 12px;
-      font-size: clamp(1.8rem, 3.2vw, 2.6rem);
-      line-height: 1.2;
-      font-weight: 800;
-    }
-    .hero p {
-      margin: 0 0 24px;
-      max-width: 780px;
-      color: #cbd5e1;
-      font-size: 1.05rem;
-    }
-    .hero-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 12px;
-      margin-top: 20px;
-    }
-    .stat-pill {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      border-radius: 10px;
-      padding: 12px 14px;
-    }
-    .stat-pill .num {
-      font-size: 1.45rem;
-      font-weight: 800;
-      color: #ffffff;
-      display: block;
-      line-height: 1.1;
-    }
-    .stat-pill .lbl {
-      font-size: 12px;
-      color: #cbd5e1;
-      margin-top: 4px;
-      display: block;
-    }
-
-    /* Sticky Nav */
-    .topnav {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      background: rgba(255, 255, 255, 0.96);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid var(--border);
-      padding: 10px 24px;
-    }
-    .topnav-inner {
-      max-width: 1180px;
-      margin: 0 auto;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-    .topnav a {
-      text-decoration: none;
-      color: var(--ink-muted);
-      font-weight: 600;
-      font-size: 13px;
-      padding: 6px 12px;
-      border-radius: 8px;
-      transition: all 0.15s ease;
-    }
-    .topnav a:hover {
-      background: var(--primary-soft);
-      color: var(--primary);
-    }
-
-    /* Main Layout */
-    .container {
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 32px 24px 64px;
-    }
-    section {
-      margin-bottom: 48px;
-      scroll-margin-top: 68px;
-    }
-    .section-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 18px;
-      border-bottom: 2px solid var(--border);
-      padding-bottom: 10px;
-    }
-    .section-num {
-      background: var(--primary);
-      color: #fff;
-      width: 34px;
-      height: 34px;
-      border-radius: 9px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 15px;
-      flex-shrink: 0;
-    }
-    .section-header h2 {
-      margin: 0;
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: var(--ink);
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 22px;
-      box-shadow: var(--shadow);
-      margin-bottom: 20px;
-    }
-    .card h3 {
-      margin-top: 0;
-      margin-bottom: 10px;
-      font-size: 1.15rem;
-      color: var(--ink);
-    }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 18px;
-    }
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 16px;
-    }
-    .grid-4 {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-    }
-
-    /* Callouts */
-    .callout {
-      border-left: 4px solid var(--primary);
-      background: var(--primary-soft);
-      padding: 14px 18px;
-      border-radius: 0 10px 10px 0;
-      margin: 16px 0;
-    }
-    .callout.warn {
-      border-left-color: var(--warn);
-      background: var(--warn-soft);
-    }
-    .callout.success {
-      border-left-color: var(--success);
-      background: var(--success-soft);
-    }
-    .callout.danger {
-      border-left-color: var(--danger);
-      background: var(--danger-soft);
-    }
-    .callout strong { display: block; margin-bottom: 4px; }
-
-    /* Badges */
-    .badge {
-      display: inline-block;
-      padding: 2px 9px;
-      border-radius: 999px;
-      font-size: 11.5px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      white-space: nowrap;
-    }
-    .badge-blue { background: var(--primary-soft); color: var(--primary-dark); border: 1px solid #bfdbfe; }
-    .badge-purple { background: var(--accent-soft); color: var(--accent); border: 1px solid #ddd6fe; }
-    .badge-green { background: var(--success-soft); color: var(--success); border: 1px solid #a7f3d0; }
-    .badge-amber { background: var(--warn-soft); color: var(--warn); border: 1px solid #fde68a; }
-    .badge-red { background: var(--danger-soft); color: var(--danger); border: 1px solid #fecaca; }
-    .badge-slate { background: var(--surface-alt); color: var(--ink-muted); border: 1px solid var(--border); }
-
-    /* Tables */
-    .table-wrap {
-      overflow-x: auto;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--surface);
-      margin-bottom: 20px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13.5px;
-      text-align: left;
-    }
-    th {
-      background: var(--surface-alt);
-      color: var(--ink);
-      font-weight: 700;
-      padding: 11px 14px;
-      border-bottom: 2px solid var(--border);
-      white-space: nowrap;
-    }
-    td {
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-    }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #f8fafc; }
-
-    code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      background: #f1f5f9;
-      color: #0f172a;
-      padding: 2px 6px;
-      border-radius: 5px;
-      font-size: 12.5px;
-      border: 1px solid #e2e8f0;
-    }
-
-    /* Diagrams */
-    .diagram-box {
-      background: #ffffff;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 18px;
-      margin: 18px 0;
-      overflow-x: auto;
-      box-shadow: var(--shadow);
-    }
-    .diagram-title {
-      font-weight: 700;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--ink-muted);
-      margin-bottom: 12px;
-    }
-    svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
-
-    /* Terminal / Proof Blocks */
-    .terminal {
-      background: var(--dark-bg);
-      color: #e2e8f0;
-      border-radius: 10px;
-      padding: 16px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 12.5px;
-      line-height: 1.5;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-      border: 1px solid #334155;
-      margin: 12px 0;
-    }
-    .terminal-cmd {
-      color: #38bdf8;
-      font-weight: 700;
-      margin-bottom: 6px;
-      display: block;
-    }
-
-    /* Tier Cards */
-    .tier-card {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 18px;
-      background: var(--surface);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-    .tier-vibe { border-top: 4px solid #64748b; }
-    .tier-lean { border-top: 4px solid #2563eb; }
-    .tier-medium { border-top: 4px solid #d97706; }
-    .tier-full { border-top: 4px solid #dc2626; }
-
-    .footer {
-      text-align: center;
-      padding: 28px 24px;
-      color: var(--ink-muted);
-      font-size: 13px;
-      border-top: 1px solid var(--border);
-      background: var(--surface);
-    }
-
-    @media print {
-      .topnav { display: none; }
-      .card, .diagram-box, .tier-card { break-inside: avoid; box-shadow: none; }
-      body { background: #fff; }
-    }
+    body { margin: 0; font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.6; }
+    header { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .container { max-width: 1180px; margin: 0 auto; padding: 24px 20px 60px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; margin-bottom: 18px; }
+    h1 { margin: 0; font-size: 18px; }
+    h2 { margin: 0 0 12px; font-size: 17px; color: var(--accent); }
+    h3 { margin: 14px 0 6px; font-size: 14.5px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--subtle); border: 1px solid var(--border); }
+    .badge.green { background: var(--green-bg); color: var(--green); border-color: transparent; }
+    .badge.amber { background: var(--amber-bg); color: var(--amber); border-color: transparent; }
+    .btn { padding: 7px 13px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer; font-size: 13px; }
+    .btn:hover { border-color: var(--accent); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .box { background: var(--subtle); border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    code { font-family: var(--mono); font-size: 12px; background: var(--subtle); padding: 2px 5px; border-radius: 4px; }
+    pre { background: #0d1117; color: #e6edf3; padding: 13px; border-radius: 8px; overflow: auto; font-family: var(--mono); font-size: 12px; }
+    svg { max-width: 100%; height: auto; display: block; }
+    @media (max-width: 820px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
-
-  <!-- HERO -->
-  <header class="hero">
-    <div class="hero-inner">
-      <span class="hero-badge">Mother Factory v1.1.0 &bull; Windows 11 &bull; Google Antigravity 2.0</span>
-      <h1>Software Company Factory &mdash; Founder &amp; Client Guide</h1>
-      <p>
-        Your plain-English operating manual for turning business ideas, legacy spreadsheets, or existing apps into
-        verified, production-grade software&mdash;without needing to write code or memorize technical jargon.
-      </p>
-      <div class="hero-stats">
-        <div class="stat-pill">
-          <span class="num">12 + Wave Pool</span>
-          <span class="lbl">Permanent Specialist Agents (Max 3 Workers/Wave)</span>
-        </div>
-        <div class="stat-pill">
-          <span class="num">18 Skills</span>
-          <span class="lbl">Verified Workspace-Only Capabilities</span>
-        </div>
-        <div class="stat-pill">
-          <span class="num">15 Hooks</span>
-          <span class="lbl">Fail-Closed Safety &amp; Quality Gates</span>
-        </div>
-        <div class="stat-pill">
-          <span class="num">4 Tiers</span>
-          <span class="lbl">Vibe (3) &rarr; Lean (6) &rarr; Medium (11) &rarr; Full (15+)</span>
-        </div>
-        <div class="stat-pill">
-          <span class="num">5 Model Slots</span>
-          <span class="lbl">100% Model-Agnostic Routing</span>
-        </div>
-      </div>
+  <header>
+    <div>
+      <h1>software-company-factory <span class="badge green">v2.0 Enterprise Specialist-Grade</span></h1>
+      <div class="muted">Plain-Language Founder &amp; Client Guide · Workspace: <code>C:\dev\software-company-factory</code></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <a class="btn" href="http://localhost:4173" target="_blank" style="text-decoration:none;">Open Live Boss Dashboard (:4173)</a>
+      <button class="btn" id="theme-toggle" type="button">Dark Mode</button>
     </div>
   </header>
 
-  <!-- STICKY NAV -->
-  <nav class="topnav">
-    <div class="topnav-inner">
-      <a href="#overview">1. System Overview &amp; Commands</a>
-      <a href="#agents">2. 12 Agents &amp; Wave Pool</a>
-      <a href="#skills-hooks-tiers">3. 18 Skills, 15 Hooks &amp; 4 Tiers</a>
-      <a href="#roadmaps">4. Three Client Roadmaps</a>
-      <a href="#verification">5. Real Verification Proof</a>
-    </div>
-  </nav>
-
   <main class="container">
-
-    <!-- ===================================================================== -->
-    <!-- SECTION 1: SYSTEM OVERVIEW & AUTOMATIC MODE VS MANUAL SLASH COMMANDS -->
-    <!-- ===================================================================== -->
-    <section id="overview">
-      <div class="section-header">
-        <span class="section-num">1</span>
-        <h2>System Overview &amp; Automatic Mode vs. Manual Slash Commands</h2>
-      </div>
-
-      <div class="card">
-        <h3>What Is This Repository? (The "Mother Factory" Concept)</h3>
-        <p>
-          <strong>Software Company Factory</strong> is <em>not</em> a single business app. It is your reusable
-          <strong>AI Software Engineering Operating System</strong> ("Mother Factory") designed for a non-coder Founder on
-          <strong>Windows 11</strong> (16 GB RAM, Intel Core Ultra 255H, cloud AI inference, max 3 parallel workers per wave,
-          and max 4 lightweight always-on helper servers called <code>MCP</code>s).
-        </p>
-        <p>
-          Whenever you want to build a new product (like a Jewelry ERP), modernize an old Excel workflow, or safely upgrade
-          an existing app, this factory runs a disciplined, verified software company inside your workspace.
-        </p>
-
-        <div class="grid-3">
-          <div class="callout">
-            <strong>1. Zero Unexplained Jargon</strong>
-            Every time a technical word appears (e.g., <code>Argon2id</code> or <code>Integer Paise</code>), the system
-            gives you a 1-line plain-English meaning and an exact Google-searchable keyword.
-          </div>
-          <div class="callout success">
-            <strong>2. Triad Options (<code>[BEST SUGGESTION]</code>)</strong>
-            You are never stuck with open-ended tech questions. The factory gives you 3 clear choices
-            (Simple / Balanced / Enterprise) with pros, cons, and a <code>[BEST SUGGESTION]</code> tag.
-          </div>
-          <div class="callout warn">
-            <strong>3. "Grill Me" Edge-Case Protection</strong>
-            Before locking any plan, the factory asks 3&ndash;5 real-world "what-if" questions (e.g.,
-            <em>"What if a customer pays half cash and half UPI?"</em>) so surprises are caught before coding starts.
-          </div>
-        </div>
-      </div>
-
-      <!-- Diagram 1: Automatic Mode vs Manual Override & Session Lifecycle -->
-      <div class="diagram-box">
-        <div class="diagram-title">Flowchart: Session Lifecycle, Automatic Mode &amp; Boss Approval Gates</div>
-        <svg viewBox="0 0 980 260" width="980" height="260" xmlns="http://www.w3.org/2000/svg" aria-label="Session Lifecycle Flowchart">
-          <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
-            </marker>
-          </defs>
-          <!-- Start -->
-          <rect x="15" y="40" width="165" height="74" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
-          <text x="97" y="66" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3a8a">/scf-start</text>
-          <text x="97" y="84" text-anchor="middle" font-size="11" fill="#475569">Checks session lock</text>
-          <text x="97" y="100" text-anchor="middle" font-size="11" fill="#475569">Loads STATUS + Models</text>
-
-          <line x1="180" y1="77" x2="215" y2="77" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
-
-          <!-- Automatic Mode -->
-          <rect x="220" y="25" width="220" height="104" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
-          <text x="330" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="#065f46">AUTOMATIC MODE</text>
-          <text x="330" y="70" text-anchor="middle" font-size="11" fill="#334155">Just describe your goal in plain English.</text>
-          <text x="330" y="87" text-anchor="middle" font-size="11" fill="#334155">Orchestrator routes Discovery &rarr; Scope</text>
-          <text x="330" y="104" text-anchor="middle" font-size="11" fill="#334155">&rarr; Architect &rarr; Build &rarr; Test &rarr; Security.</text>
-
-          <line x1="440" y1="77" x2="475" y2="77" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
-
-          <!-- Boss Approval Gate -->
-          <rect x="480" y="25" width="220" height="104" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
-          <text x="590" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">BOSS APPROVAL GATES</text>
-          <text x="590" y="70" text-anchor="middle" font-size="11" fill="#334155">1. Medium/Full Spec: reply "APPROVE"</text>
-          <text x="590" y="87" text-anchor="middle" font-size="11" fill="#334155">2. Production Release: manual /scf-deploy</text>
-          <text x="590" y="104" text-anchor="middle" font-size="11" fill="#334155">(Never deploys automatically!)</text>
-
-          <line x1="700" y1="77" x2="735" y2="77" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
-
-          <!-- End -->
-          <rect x="740" y="40" width="220" height="74" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2"/>
-          <text x="850" y="66" text-anchor="middle" font-size="13" font-weight="700" fill="#5b21b6">/scf-end</text>
-          <text x="850" y="84" text-anchor="middle" font-size="11" fill="#475569">Atomic Git checkpoint + rollback tag</text>
-          <text x="850" y="100" text-anchor="middle" font-size="11" fill="#475569">Marks session.lock.json ENDED</text>
-
-          <!-- Manual Override Bar -->
-          <rect x="220" y="162" width="480" height="74" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5" stroke-dasharray="6,4"/>
-          <text x="460" y="186" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">Manual Slash Command Overrides (/scf-*)</text>
-          <text x="460" y="205" text-anchor="middle" font-size="11.5" fill="#475569">Need a specific step only? Run /scf-audit, /scf-research, /scf-sec-ops, /scf-debug, etc. anytime.</text>
-          <text x="460" y="222" text-anchor="middle" font-size="11" fill="#64748b">All 15 fail-closed hooks &amp; session locks still protect you automatically.</text>
-
-          <line x1="330" y1="129" x2="330" y2="160" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
-          <line x1="590" y1="160" x2="590" y2="129" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
-        </svg>
-      </div>
-
-      <div class="grid-2">
-        <div class="card">
-          <h3>Automatic Mode vs. Manual Slash Commands</h3>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Mode</th>
-                  <th>How You Use It</th>
-                  <th>Best For</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><span class="badge badge-green">Automatic Mode</span></td>
-                  <td>Run <code>/software-company-factory-start</code> (or <code>/scf-start</code>), then talk in plain English.</td>
-                  <td>End-to-end features, new apps, or full client projects where you want the Orchestrator to drive every step.</td>
-                </tr>
-                <tr>
-                  <td><span class="badge badge-blue">Manual <code>/scf-*</code> Overrides</span></td>
-                  <td>Type a specific command like <code>/scf-audit</code>, <code>/scf-change-impact</code>, or <code>/scf-sec-ops</code>.</td>
-                  <td>Targeted tasks: auditing an existing repo, checking security before a demo, or debugging one stubborn bug.</td>
-                </tr>
-                <tr>
-                  <td><span class="badge badge-purple">Clean Shutdown</span></td>
-                  <td>Run <code>/software-company-factory-end</code> (or <code>/scf-end</code>).</td>
-                  <td>Saving your Git backup, updating <code>STATUS.md</code> &amp; <code>LATEST_SESSION.md</code>, and unlocking the workspace.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>100% Model-Agnostic Slot Routing (<code>.factory/models.json</code>)</h3>
-          <p style="margin-top:0; font-size:13.5px; color:var(--ink-muted);">
-            No skill or script hardcodes an AI vendor name. You can override models from the UI anytime
-            (<code>allow_founder_ui_model_selection: true</code>).
-          </p>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Abstract Slot</th>
-                  <th>Primary &rarr; Fallback</th>
-                  <th>Job</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>light_ops_slot</code></td>
-                  <td><code>gemini-4-hydrogen</code> (medium) &rarr; <code>active-antigravity-default</code></td>
-                  <td><code>STATUS.md</code>, docs, discovery, <code>Vibe</code> tweaks</td>
-                </tr>
-                <tr>
-                  <td><code>worker_slot</code></td>
-                  <td><code>gemini-4-hydrogen</code> (high) &rarr; <code>active-antigravity-default</code></td>
-                  <td>UI/Backend wave workers, everyday coding, tests</td>
-                </tr>
-                <tr>
-                  <td><code>architect_slot</code></td>
-                  <td><code>gemini-4-hydrogen</code> (xhigh) &rarr; <code>claude-sonnet-4.6</code> &rarr; default</td>
-                  <td>Stack selection, system architecture, specs</td>
-                </tr>
-                <tr>
-                  <td><code>deep_logic_slot</code></td>
-                  <td><code>gemini-4-hydrogen</code> (xhigh) &rarr; <code>active-antigravity-default</code></td>
-                  <td>Money/GST math, auth/security, root-cause debug</td>
-                </tr>
-                <tr>
-                  <td><code>blind_reviewer_slot</code></td>
-                  <td><code>claude-sonnet-4.6</code> (high) &rarr; fresh <code>gemini-4-hydrogen</code></td>
-                  <td>Zero-history <code>Full</code>-tier blind code &amp; spec review</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===================================================================== -->
-    <!-- SECTION 2: 12 PERMANENT SPECIALIST AGENTS + DYNAMIC WAVE POOL         -->
-    <!-- ===================================================================== -->
-    <section id="agents">
-      <div class="section-header">
-        <span class="section-num">2</span>
-        <h2>12 Permanent Specialist Agents + Dynamic Wave Pool</h2>
-      </div>
-
-      <p>
-        Instead of one confused AI trying to do everything at once, your factory runs like a real 12-person engineering
-        company. Every agent has <strong>strict single-file ownership</strong> (so two agents never overwrite each other's files).
-      </p>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Specialist Agent</th>
-              <th>Plain-English Role</th>
-              <th>Skills Owned</th>
-              <th>Strict Write Ownership</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>1</td>
-              <td><strong>Boss Interface &amp; Discovery Lead</strong></td>
-              <td>Interviews you in plain language, runs research, writes the Application Handbook.</td>
-              <td><code>scf-discover</code>, <code>scf-research</code>, <code>scf-handbook</code></td>
-              <td><code>docs/product/*</code></td>
-            </tr>
-            <tr>
-              <td>2</td>
-              <td><strong>Master Build Orchestrator</strong></td>
-              <td>Central dispatcher: slices work, enforces file locks, runs max 3 workers per wave.</td>
-              <td><code>scf-scope</code>, <code>scf-change-impact</code>, <code>start</code>/<code>end</code></td>
-              <td><code>docs/scope/*</code></td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td><strong>Chief Architect &amp; Stack Selector</strong></td>
-              <td>Picks the best tech stack, audits codebases, writes Plain-English + Technical Specs.</td>
-              <td><code>scf-architect</code>, <code>scf-audit</code></td>
-              <td><code>docs/specs/*</code></td>
-            </tr>
-            <tr>
-              <td>4</td>
-              <td><strong>Frontend Lead Orchestrator</strong></td>
-              <td>Designs UI structure &amp; delegates screens using UI/UX pattern lookups.</td>
-              <td><code>scf-develop</code> (UI track)</td>
-              <td><code>src/web/*</code>, <code>src/app/*</code>, <code>src/components/*</code></td>
-            </tr>
-            <tr>
-              <td>5</td>
-              <td><strong>Backend Lead Orchestrator</strong></td>
-              <td>Designs APIs, business logic, GST/money rules &amp; delegates endpoints.</td>
-              <td><code>scf-develop</code> (Logic track)</td>
-              <td><code>src/server/*</code>, <code>src/api/*</code>, <code>src/services/*</code></td>
-            </tr>
-            <tr>
-              <td>6</td>
-              <td><strong>Database &amp; Schema Builder</strong></td>
-              <td>Builds tables, migrations &amp; integer money/weight schemas.</td>
-              <td><code>scf-develop</code> (Data track)</td>
-              <td><code>src/db/*</code>, <code>prisma/*</code>, <code>migrations/*</code></td>
-            </tr>
-            <tr>
-              <td>7</td>
-              <td><strong>Dynamic Frontend Sub-Agent Pool</strong></td>
-              <td>Fresh wave workers: each builds 1&ndash;2 screens with &le; 40 KB context.</td>
-              <td>Wave Task Packets</td>
-              <td>Assigned UI files only</td>
-            </tr>
-            <tr>
-              <td>8</td>
-              <td><strong>Dynamic Backend Sub-Agent Pool</strong></td>
-              <td>Fresh wave workers: each builds 1 endpoint/engine with &le; 40 KB context.</td>
-              <td>Wave Task Packets</td>
-              <td>Assigned API/service files only</td>
-            </tr>
-            <tr>
-              <td>9</td>
-              <td><strong>GitHub, Version Control &amp; Backup Agent</strong></td>
-              <td>Checks for code collisions and creates atomic Git checkpoints + rollback tags.</td>
-              <td><code>git-checkpoint.mjs</code>, <code>ast-collision-guard.mjs</code></td>
-              <td>Git commits &amp; rollback tags</td>
-            </tr>
-            <tr>
-              <td>10</td>
-              <td><strong>QA Verification &amp; Testing Agent</strong></td>
-              <td>Writes unit/E2E/boundary tests, runs live checks, issues proof gates.</td>
-              <td><code>scf-test</code>, <code>scf-check</code> (verify)</td>
-              <td><code>tests/*</code>, <code>.factory/gates/*</code></td>
-            </tr>
-            <tr>
-              <td>11</td>
-              <td><strong>Cross-Model Reviewer &amp; Debugger</strong></td>
-              <td>Zero-history blind code review &amp; deep root-cause bug investigation.</td>
-              <td><code>scf-check</code> (review), <code>scf-debug</code></td>
-              <td>Review reports &amp; bug diagnoses</td>
-            </tr>
-            <tr>
-              <td>12</td>
-              <td><strong>Security, Compliance &amp; Release Officer</strong></td>
-              <td>Runs 5-stage security scans, syncs docs, enforces manual Boss deploy gate.</td>
-              <td><code>scf-sec-ops</code>, <code>scf-doc-sync</code>, <code>scf-deploy</code>, <code>scf-legacy-re</code>, <code>scf-hardware-compliance</code></td>
-              <td><code>AGENTS.md</code>, <code>STATUS.md</code>, <code>docs/handoff/*</code></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Diagram 2: Dynamic Flat Wave Protocol & BUG-*.json 3-Attempt Circuit Breaker -->
-      <div class="diagram-box">
-        <div class="diagram-title">Flowchart: Dynamic Flat Wave Protocol (&le; 3 Workers, &le; 40 KB) &amp; BUG-*.json 3-Attempt Circuit Breaker</div>
-        <svg viewBox="0 0 980 310" width="980" height="310" xmlns="http://www.w3.org/2000/svg" aria-label="Wave and Bug Loop Flowchart">
-          <defs>
-            <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
-            </marker>
-          </defs>
-
-          <!-- Wave Plan -->
-          <rect x="15" y="25" width="185" height="82" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
-          <text x="107" y="50" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1e3a8a">1. Flat Wave Plan</text>
-          <text x="107" y="68" text-anchor="middle" font-size="10.5" fill="#334155">Leads write wave-plan.json</text>
-          <text x="107" y="84" text-anchor="middle" font-size="10.5" fill="#334155">with disjoint file paths</text>
-          <text x="107" y="99" text-anchor="middle" font-size="10.5" fill="#334155">(No nested sub-agents)</text>
-
-          <line x1="200" y1="66" x2="235" y2="66" stroke="#475569" stroke-width="2" marker-end="url(#arrow2)"/>
-
-          <!-- 3 Workers -->
-          <rect x="240" y="15" width="210" height="102" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
-          <text x="345" y="38" text-anchor="middle" font-size="12.5" font-weight="700" fill="#065f46">2. Max 3 Workers / Wave</text>
-          <rect x="255" y="48" width="56" height="32" rx="6" fill="#fff" stroke="#10b981"/>
-          <text x="283" y="68" text-anchor="middle" font-size="10.5" font-weight="700" fill="#065f46">W1</text>
-          <rect x="317" y="48" width="56" height="32" rx="6" fill="#fff" stroke="#10b981"/>
-          <text x="345" y="68" text-anchor="middle" font-size="10.5" font-weight="700" fill="#065f46">W2</text>
-          <rect x="379" y="48" width="56" height="32" rx="6" fill="#fff" stroke="#10b981"/>
-          <text x="407" y="68" text-anchor="middle" font-size="10.5" font-weight="700" fill="#065f46">W3</text>
-          <text x="345" y="102" text-anchor="middle" font-size="10.5" fill="#334155">Each gets &le; 40 KB context slice</text>
-
-          <line x1="450" y1="66" x2="485" y2="66" stroke="#475569" stroke-width="2" marker-end="url(#arrow2)"/>
-
-          <!-- Guards -->
-          <rect x="490" y="25" width="210" height="82" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2"/>
-          <text x="595" y="50" text-anchor="middle" font-size="12.5" font-weight="700" fill="#5b21b6">3. Collision &amp; Git Guard</text>
-          <text x="595" y="69" text-anchor="middle" font-size="10.5" fill="#334155">ast-collision-guard.mjs</text>
-          <text x="595" y="85" text-anchor="middle" font-size="10.5" fill="#334155">+ git-checkpoint.mjs</text>
-          <text x="595" y="100" text-anchor="middle" font-size="10.5" fill="#334155">before moving to QA</text>
-
-          <line x1="700" y1="66" x2="735" y2="66" stroke="#475569" stroke-width="2" marker-end="url(#arrow2)"/>
-
-          <!-- QA Check -->
-          <rect x="740" y="25" width="220" height="82" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
-          <text x="850" y="50" text-anchor="middle" font-size="12.5" font-weight="700" fill="#92400e">4. QA &amp; Security Check</text>
-          <text x="850" y="70" text-anchor="middle" font-size="11" fill="#059669" font-weight="700">PASS &rarr; Write .gate.json Proof</text>
-          <text x="850" y="88" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="700">FAIL &rarr; Emit BUG-&lt;NNN&gt;.json</text>
-
-          <!-- Down arrow from QA Fail -->
-          <line x1="850" y1="107" x2="850" y2="165" stroke="#dc2626" stroke-width="2" marker-end="url(#arrow2)"/>
-
-          <!-- Bug Ticket -->
-          <rect x="640" y="170" width="320" height="115" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
-          <text x="800" y="194" text-anchor="middle" font-size="12.5" font-weight="700" fill="#991b1b">BUG-&lt;NNN&gt;.json Auto-Fix Loop</text>
-          <text x="800" y="213" text-anchor="middle" font-size="10.5" fill="#334155">Records: owner_agent, exact_file, exact_line,</text>
-          <text x="800" y="229" text-anchor="middle" font-size="10.5" fill="#334155">failing_command, expected vs actual, attempt_count</text>
-          <text x="800" y="250" text-anchor="middle" font-size="11" font-weight="700" fill="#991b1b">Routed ONLY to owner_agent (Max 3 attempts)</text>
-          <text x="800" y="268" text-anchor="middle" font-size="10.5" fill="#475569">Attempt 1 &ndash; 3 &rarr; Re-run QA Check</text>
-
-          <!-- Circuit Breaker -->
-          <line x1="640" y1="227" x2="545" y2="227" stroke="#dc2626" stroke-width="2" marker-end="url(#arrow2)"/>
-          <text x="593" y="218" text-anchor="middle" font-size="10.5" font-weight="700" fill="#dc2626">3 Fails</text>
-
-          <rect x="240" y="170" width="300" height="115" rx="10" fill="#0f172a" stroke="#dc2626" stroke-width="2"/>
-          <text x="390" y="196" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fca5a5">3-ATTEMPT CIRCUIT BREAKER TRIPS</text>
-          <text x="390" y="218" text-anchor="middle" font-size="11" fill="#e2e8f0">1. Stops endless AI guessing immediately</text>
-          <text x="390" y="236" text-anchor="middle" font-size="11" fill="#e2e8f0">2. Runs 1 deep_logic_slot root-cause pass</text>
-          <text x="390" y="254" text-anchor="middle" font-size="11" fill="#fde68a" font-weight="700">3. Escalates to Founder with 3 Triad Options</text>
-          <text x="390" y="272" text-anchor="middle" font-size="10.5" fill="#94a3b8">([BEST SUGGESTION] included)</text>
-        </svg>
-      </div>
-    </section>
-
-    <!-- ===================================================================== -->
-    <!-- SECTION 3: 18 SKILLS, 15 FAIL-CLOSED HOOKS & 4 WORKFLOW TIERS         -->
-    <!-- ===================================================================== -->
-    <section id="skills-hooks-tiers">
-      <div class="section-header">
-        <span class="section-num">3</span>
-        <h2>Complete Verified 18 Skills, 15 Fail-Closed Hooks &amp; 4 Workflow Tiers</h2>
-      </div>
-
-      <h3>A. All 18 Workspace-Only Skills (<code>.agents/skills/&lt;name&gt;/SKILL.md</code>)</h3>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Skill Name</th>
-              <th>Category</th>
-              <th>What It Does (Plain English)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>1</td><td><code>software-company-factory-start</code></td><td><span class="badge badge-purple">Session</span></td><td>Boots isolated session, checks lock &amp; Windows health, loads memory &amp; models, activates Automatic Mode.</td></tr>
-            <tr><td>2</td><td><code>software-company-factory-end</code></td><td><span class="badge badge-purple">Session</span></td><td>Verifies clean files, runs atomic Git checkpoint, updates <code>STATUS.md</code> &amp; <code>LATEST_SESSION.md</code>, sets lock <code>ENDED</code>.</td></tr>
-            <tr><td>3</td><td><code>scf-discover</code></td><td><span class="badge badge-blue">Discovery</span></td><td>Interviews you in plain language using Triad Options and "Grill Me" edge-case questions; saves to <code>docs/product/</code>.</td></tr>
-            <tr><td>4</td><td><code>scf-research</code></td><td><span class="badge badge-blue">Discovery</span></td><td>Runs 3-level market, tech &amp; Indian compliance research with confidence tags (<code>confirmed</code>, <code>likely</code>, <code>possible</code>, <code>uncertain</code>).</td></tr>
-            <tr><td>5</td><td><code>scf-handbook</code></td><td><span class="badge badge-blue">Discovery</span></td><td>Creates a plain-English Application Handbook: business model, user journeys, role permissions &amp; workflow maps.</td></tr>
-            <tr><td>6</td><td><code>scf-scope</code></td><td><span class="badge badge-blue">Planning</span></td><td>Slices your handbook/idea into buildable vertical features and assigns Workflow Tiers (Vibe, Lean, Medium, Full).</td></tr>
-            <tr><td>7</td><td><code>scf-audit</code></td><td><span class="badge badge-amber">Architecture</span></td><td>Audits existing codebases, picks the cleanest pattern (Clean, DDD, Functional, SOLID OOP), and flags tech debt.</td></tr>
-            <tr><td>8</td><td><code>scf-change-impact</code></td><td><span class="badge badge-amber">Architecture</span></td><td>Runs a 7-step ripple-effect check before mid-project changes (DB, API, UI, Spec 0001/0002, tests, tier escalation).</td></tr>
-            <tr><td>9</td><td><code>scf-architect</code></td><td><span class="badge badge-amber">Architecture</span></td><td>Picks future-proof stack, writes Plain-English + Technical Specs (Spec 0001 &amp; 0002), enforces Boss <code>APPROVE</code> gate.</td></tr>
-            <tr><td>10</td><td><code>scf-develop</code></td><td><span class="badge badge-green">Build</span></td><td>Coordinates DB Builder, Backend Lead &amp; Frontend Lead with max-3 wave workers (&le; 40 KB slices) and AST collision checks.</td></tr>
-            <tr><td>11</td><td><code>scf-test</code></td><td><span class="badge badge-green">Quality</span></td><td>Writes real unit, integration, E2E &amp; financial boundary tests inside <code>tests/</code> for Medium and Full features.</td></tr>
-            <tr><td>12</td><td><code>scf-check</code></td><td><span class="badge badge-green">Quality</span></td><td>Runs live app checks (<code>verify</code>) &amp; zero-history blind review (<code>review</code>), emits <code>BUG-*.json</code> or <code>.gate.json</code> proofs.</td></tr>
-            <tr><td>13</td><td><code>scf-debug</code></td><td><span class="badge badge-red">Debug</span></td><td>Hypothesis-driven root-cause debugging via <code>deep_logic_slot</code> with a 3-attempt circuit breaker.</td></tr>
-            <tr><td>14</td><td><code>scf-sec-ops</code></td><td><span class="badge badge-red">Security</span></td><td>5-stage fail-closed security audit (Gitleaks, Argon2id/PII, hardening, Trail of Bits deep logic, attacker review) &amp; money rules.</td></tr>
-            <tr><td>15</td><td><code>scf-doc-sync</code></td><td><span class="badge badge-slate">Docs</span></td><td>Keeps <code>STATUS.md</code>, <code>AGENTS.md</code>, <code>README.md</code>, <code>LATEST_SESSION.md</code> &amp; ADRs synced in plain English after milestones.</td></tr>
-            <tr><td>16</td><td><code>scf-deploy</code></td><td><span class="badge badge-red">Release</span></td><td>100% manual Boss-Only production release gate: checks all <code>.gate.json</code> proofs, security gates &amp; rollback anchors.</td></tr>
-            <tr><td>17</td><td><code>scf-legacy-re</code></td><td><span class="badge badge-purple">Plug-in</span></td><td>Optional skill to reverse-engineer and safely modernize legacy apps, Excel workflows, or client codebases (REA + Craft).</td></tr>
-            <tr><td>18</td><td><code>scf-hardware-compliance</code></td><td><span class="badge badge-purple">Plug-in</span></td><td>Dormant plug-in that activates only for physical hardware: IoT devices, serial weighing scales, barcode printers, firmware.</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3>B. All 15 Fail-Closed Safety Hooks (<code>.agents/hooks.json</code>)</h3>
-      <p style="font-size:13.5px; color:var(--ink-muted); margin-top:-6px;">
-        "Fail-closed" means if any check fails, the factory <strong>stops immediately</strong>&mdash;it never turns an error into a quiet warning.
-      </p>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Hook ID</th>
-              <th>When It Runs</th>
-              <th>What It Blocks / Enforces</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>1</td><td><code>session-lock-check</code></td><td><code>pre-mutation</code></td><td>Blocks editing any file unless <code>.factory/session.lock.json</code> is <code>ACTIVE</code> for <code>software-company-factory</code>.</td></tr>
-            <tr><td>2</td><td><code>block-eval-usage</code></td><td><code>pre-commit</code></td><td>Blocks dangerous dynamic code execution like <code>eval()</code> and <code>new Function()</code>.</td></tr>
-            <tr><td>3</td><td><code>block-float-money</code></td><td><code>pre-commit</code></td><td>Blocks decimal float math on money, GST, gold weight, or ledgers (must use integer paise / milligrams / Decimal / BigInt).</td></tr>
-            <tr><td>4</td><td><code>block-env-staging</code></td><td><code>pre-commit</code></td><td>Hard-blocks committing <code>.env</code>, <code>.env.local</code>, private keys, or credentials to Git.</td></tr>
-            <tr><td>5</td><td><code>block-hardcoded-secrets</code></td><td><code>pre-commit</code></td><td>Scans diffs &amp; client code with Gitleaks/regex to block API keys or passwords in code.</td></tr>
-            <tr><td>6</td><td><code>block-assumed-spec-done</code></td><td><code>pre-gate</code></td><td><strong>Spec 0001:</strong> Blocks marking a feature <code>DONE</code> if its spec is still <code>ASSUMED</code> or <code>DRAFT</code>.</td></tr>
-            <tr><td>7</td><td><code>block-unsourced-values</code></td><td><code>pre-gate</code></td><td><strong>Spec 0002:</strong> Rejects specs missing exact DB/API Value Sourcing for any UI or API field.</td></tr>
-            <tr><td>8</td><td><code>pre-commit-portability</code></td><td><code>pre-commit</code></td><td>Runs <code>check-portability.mjs</code> to verify skill byte limits, <code>openai.yaml</code>, and zero hardcoded model names.</td></tr>
-            <tr><td>9</td><td><code>pre-commit-ast-collision</code></td><td><code>pre-wave-merge</code></td><td>Runs <code>ast-collision-guard.mjs</code> to verify file locks and symbol diffs across parallel wave workers.</td></tr>
-            <tr><td>10</td><td><code>pre-commit-lint-typecheck</code></td><td><code>pre-commit</code></td><td>Runs project linter and strict TypeScript/syntax typecheck before committing.</td></tr>
-            <tr><td>11</td><td><code>pre-commit-unit-tests</code></td><td><code>pre-commit</code></td><td>Runs affected unit tests before creating an atomic commit.</td></tr>
-            <tr><td>12</td><td><code>post-wave-git-checkpoint</code></td><td><code>post-wave</code></td><td>Runs <code>git-checkpoint.mjs status</code> to verify wave checkpoint readiness + rollback tag.</td></tr>
-            <tr><td>13</td><td><code>pre-release-security-gate</code></td><td><code>pre-release</code></td><td>Runs 5-stage <code>scf-sec-ops</code> checks (semgrep, trivy, gitleaks, PII check, logic audit).</td></tr>
-            <tr><td>14</td><td><code>pre-deploy-gate-verify</code></td><td><code>pre-deploy</code></td><td>Runs <code>gate-check.mjs --all</code> to confirm every <code>.factory/gates/*.gate.json</code> is <code>PASS</code>.</td></tr>
-            <tr><td>15</td><td><code>block-unapproved-deploy</code></td><td><code>pre-deploy</code></td><td>Hard-blocks automated production deploy without explicit manual Boss <code>/scf-deploy</code> approval.</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3>C. The 4 Workflow Tiers (Automatic Complexity Scaling)</h3>
-      <div class="grid-4">
-        <div class="tier-card tier-vibe">
-          <div>
-            <span class="badge badge-slate">Vibe Tier &bull; 3 Checks</span>
-            <h4 style="margin:10px 0 6px;">Quick Polish &amp; Copy</h4>
-            <p style="font-size:13px; color:var(--ink-muted);">Copy edits, color tweaks, tiny UI polish.</p>
-            <ul style="font-size:12.5px; padding-left:18px; margin:0;">
-              <li>Lint + Typecheck + Self-check</li>
-              <li>Atomic <code>git commit</code></li>
-              <li>Spec Approval: No</li>
-              <li>Security Stages: None</li>
-            </ul>
-          </div>
-          <div style="margin-top:12px; font-size:12px;"><strong>Model:</strong> <code>light_ops_slot</code></div>
-        </div>
-
-        <div class="tier-card tier-lean">
-          <div>
-            <span class="badge badge-blue">Lean Tier &bull; 6 Checks</span>
-            <h4 style="margin:10px 0 6px;">Simple Features</h4>
-            <p style="font-size:13px; color:var(--ink-muted);">Simple CRUD form, static page, utility script.</p>
-            <ul style="font-size:12.5px; padding-left:18px; margin:0;">
-              <li>All Vibe checks</li>
-              <li><code>/scf-check verify</code> + <code>.gate.json</code></li>
-              <li>Spec Approval: No</li>
-              <li>Security Stage: <code>[1]</code></li>
-            </ul>
-          </div>
-          <div style="margin-top:12px; font-size:12px;"><strong>Model:</strong> <code>worker_slot</code></div>
-        </div>
-
-        <div class="tier-card tier-medium">
-          <div>
-            <span class="badge badge-amber">Medium Tier &bull; 11 Checks</span>
-            <h4 style="margin:10px 0 6px;">Core ERP Modules</h4>
-            <p style="font-size:13px; color:var(--ink-muted);">Inventory, CRM, non-financial reports.</p>
-            <ul style="font-size:12.5px; padding-left:18px; margin:0;">
-              <li>All Lean checks + AST Guard</li>
-              <li><strong>Boss Spec <code>APPROVE</code> Gate</strong></li>
-              <li><code>/scf-test</code> suite</li>
-              <li>Security Stages: <code>[1, 2, 3]</code></li>
-            </ul>
-          </div>
-          <div style="margin-top:12px; font-size:12px;"><strong>Model:</strong> <code>architect_slot</code> + <code>worker_slot</code></div>
-        </div>
-
-        <div class="tier-card tier-full">
-          <div>
-            <span class="badge badge-red">Full Tier &bull; 15+ Checks</span>
-            <h4 style="margin:10px 0 6px;">Money, GST, Gold &amp; Auth</h4>
-            <p style="font-size:13px; color:var(--ink-muted);">Payments, GST invoices, gold weight, login/roles.</p>
-            <ul style="font-size:12.5px; padding-left:18px; margin:0;">
-              <li>All Medium checks + <code>block-float-money</code></li>
-              <li><strong>Blind <code>/scf-check review</code></strong></li>
-              <li>5-Stage Security <code>[1..5]</code></li>
-              <li><code>/scf-doc-sync</code> + Boss UAT</li>
-            </ul>
-          </div>
-          <div style="margin-top:12px; font-size:12px;"><strong>Model:</strong> <code>architect</code> + <code>deep_logic</code> + <code>blind_reviewer</code></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===================================================================== -->
-    <!-- SECTION 4: THREE COMPLETE CLIENT ROADMAPS                             -->
-    <!-- ===================================================================== -->
-    <section id="roadmaps">
-      <div class="section-header">
-        <span class="section-num">4</span>
-        <h2>Three Complete Client Roadmaps (With Real-World Examples)</h2>
-      </div>
-
-      <!-- Journey A -->
-      <div class="card">
-        <h3><span class="badge badge-green">Journey A</span> Zero-to-One Idea &mdash; Example: Custom Jewelry ERP</h3>
-        <p>
-          <strong>Scenario:</strong> You want to build a brand-new Jewelry Store ERP from scratch (gold weight in milligrams,
-          GST billing in integer paise, split Cash + UPI payments, BIS hallmark tracking, and staff role permissions).
-        </p>
-        <div class="diagram-box" style="box-shadow:none; margin:12px 0;">
-          <svg viewBox="0 0 940 135" width="940" height="135" xmlns="http://www.w3.org/2000/svg" aria-label="Journey A Flowchart">
-            <defs>
-              <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#059669" />
-              </marker>
-            </defs>
-            <rect x="5" y="25" width="102" height="70" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
-            <text x="56" y="52" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46">1. Discover</text>
-            <text x="56" y="68" text-anchor="middle" font-size="9.5" fill="#334155">Triad + Grill Me</text>
-            <text x="56" y="82" text-anchor="middle" font-size="9.5" fill="#334155">/scf-discover</text>
-            <line x1="107" y1="60" x2="123" y2="60" stroke="#059669" stroke-width="1.5" marker-end="url(#arrA)"/>
-
-            <rect x="125" y="25" width="102" height="70" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
-            <text x="176" y="52" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46">2. Research</text>
-            <text x="176" y="68" text-anchor="middle" font-size="9.5" fill="#334155">GST &amp; BIS rules</text>
-            <text x="176" y="82" text-anchor="middle" font-size="9.5" fill="#334155">/scf-research</text>
-            <line x1="227" y1="60" x2="243" y2="60" stroke="#059669" stroke-width="1.5" marker-end="url(#arrA)"/>
-
-            <rect x="245" y="25" width="102" height="70" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
-            <text x="296" y="52" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46">3. Handbook</text>
-            <text x="296" y="68" text-anchor="middle" font-size="9.5" fill="#334155">Roles &amp; Journeys</text>
-            <text x="296" y="82" text-anchor="middle" font-size="9.5" fill="#334155">/scf-handbook</text>
-            <line x1="347" y1="60" x2="363" y2="60" stroke="#059669" stroke-width="1.5" marker-end="url(#arrA)"/>
-
-            <rect x="365" y="25" width="102" height="70" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
-            <text x="416" y="52" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46">4. Scope</text>
-            <text x="416" y="68" text-anchor="middle" font-size="9.5" fill="#334155">Billing = Full Tier</text>
-            <text x="416" y="82" text-anchor="middle" font-size="9.5" fill="#334155">/scf-scope</text>
-            <line x1="467" y1="60" x2="483" y2="60" stroke="#059669" stroke-width="1.5" marker-end="url(#arrA)"/>
-
-            <rect x="485" y="25" width="108" height="70" rx="8" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
-            <text x="539" y="50" text-anchor="middle" font-size="11" font-weight="700" fill="#92400e">5. Architect</text>
-            <text x="539" y="66" text-anchor="middle" font-size="9.5" fill="#334155">Spec 0001 &amp; 0002</text>
-            <text x="539" y="82" text-anchor="middle" font-size="9.5" font-weight="700" fill="#92400e">Boss "APPROVE"</text>
-            <line x1="593" y1="60" x2="609" y2="60" stroke="#059669" stroke-width="1.5" marker-end="url(#arrA)"/>
-
-            <rect x="611" y="25" width="102" height="70" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
-            <text x="662" y="52" text-anchor="middle" font-size="11" font-weight="700" fill="#1e3a8a">6. Build Waves</text>
-            <text x="662" y="68" text-anchor="middle" font-size="9.5" fill="#334155">DB &rarr; API &rarr; UI</text>
-            <text x="662" y="82" text-anchor="middle" font-size="9.5" fill="#334155">/scf-develop</text>
-            <line x1="713" y1="60" x2="729" y2="60" stroke="#059669" stroke-width="1.5" marker-end="url(#arrA)"/>
-
-            <rect x="731" y="25" width="102" height="70" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
-            <text x="782" y="50" text-anchor="middle" font-size="11" font-weight="700" fill="#991b1b">7. Verify + Sec</text>
-            <text x="782" y="66" text-anchor="middle" font-size="9.5" fill="#334155">Tests + Blind Rev</text>
-            <text x="782" y="82" text-anchor="middle" font-size="9.5" fill="#334155">5-Stage Sec-Ops</text>
-            <line x1="833" y1="60" x2="849" y2="60" stroke="#059669" stroke-width="1.5" marker-end="url(#arrA)"/>
-
-            <rect x="851" y="25" width="84" height="70" rx="8" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2"/>
-            <text x="893" y="50" text-anchor="middle" font-size="11" font-weight="700" fill="#5b21b6">8. Deploy</text>
-            <text x="893" y="66" text-anchor="middle" font-size="9.5" fill="#334155">Manual Boss</text>
-            <text x="893" y="82" text-anchor="middle" font-size="9.5" fill="#334155">/scf-deploy</text>
-          </svg>
-        </div>
-        <p style="margin-bottom:0; font-size:13.5px; color:var(--ink-muted);">
-          <strong>Hardware note:</strong> If the jewelry counter later connects a serial weighing scale or barcode printer,
-          the dormant <code>scf-hardware-compliance</code> plug-in activates automatically.
-        </p>
-      </div>
-
-      <!-- Journey B -->
-      <div class="card">
-        <h3><span class="badge badge-purple">Journey B</span> Reverse Engineer &amp; Rebuild Legacy App / Excel &mdash; via <code>scf-legacy-re</code></h3>
-        <p>
-          <strong>Scenario:</strong> A client runs their business on messy Excel macros, an outdated Tally/desktop tool, or
-          an undocumented legacy codebase and wants a clean, modern web app without losing hidden calculation rules.
-        </p>
-        <div class="diagram-box" style="box-shadow:none; margin:12px 0;">
-          <svg viewBox="0 0 940 120" width="940" height="120" xmlns="http://www.w3.org/2000/svg" aria-label="Journey B Flowchart">
-            <defs>
-              <marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#7c3aed" />
-              </marker>
-            </defs>
-            <rect x="10" y="20" width="165" height="72" rx="8" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2"/>
-            <text x="92" y="45" text-anchor="middle" font-size="11.5" font-weight="700" fill="#5b21b6">1. /scf-legacy-re</text>
-            <text x="92" y="62" text-anchor="middle" font-size="10" fill="#334155">REA Analysis of Excel /</text>
-            <text x="92" y="77" text-anchor="middle" font-size="10" fill="#334155">legacy code &amp; formulas</text>
-            <line x1="175" y1="56" x2="198" y2="56" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrB)"/>
-
-            <rect x="200" y="20" width="165" height="72" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
-            <text x="282" y="45" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1e3a8a">2. Handbook &amp; Scope</text>
-            <text x="282" y="62" text-anchor="middle" font-size="10" fill="#334155">Confirm rules with Boss</text>
-            <text x="282" y="77" text-anchor="middle" font-size="10" fill="#334155">Slice into vertical tiers</text>
-            <line x1="365" y1="56" x2="388" y2="56" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrB)"/>
-
-            <rect x="390" y="20" width="170" height="72" rx="8" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
-            <text x="475" y="45" text-anchor="middle" font-size="11.5" font-weight="700" fill="#92400e">3. /scf-architect</text>
-            <text x="475" y="62" text-anchor="middle" font-size="10" fill="#334155">Modern stack + Spec</text>
-            <text x="475" y="77" text-anchor="middle" font-size="10" font-weight="700" fill="#92400e">Boss "APPROVE" Gate</text>
-            <line x1="560" y1="56" x2="583" y2="56" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrB)"/>
-
-            <rect x="585" y="20" width="165" height="72" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
-            <text x="667" y="45" text-anchor="middle" font-size="11.5" font-weight="700" fill="#065f46">4. Craft Rebuild</text>
-            <text x="667" y="62" text-anchor="middle" font-size="10" fill="#334155">Wave build + parity tests</text>
-            <text x="667" y="77" text-anchor="middle" font-size="10" fill="#334155">(old output == new output)</text>
-            <line x1="750" y1="56" x2="773" y2="56" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrB)"/>
-
-            <rect x="775" y="20" width="155" height="72" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
-            <text x="852" y="45" text-anchor="middle" font-size="11.5" font-weight="700" fill="#991b1b">5. Gate &amp; Deploy</text>
-            <text x="852" y="62" text-anchor="middle" font-size="10" fill="#334155">Sec-Ops + .gate.json</text>
-            <text x="852" y="77" text-anchor="middle" font-size="10" fill="#334155">Manual /scf-deploy</text>
-          </svg>
-        </div>
-      </div>
-
-      <!-- Journey C -->
-      <div class="card">
-        <h3><span class="badge badge-amber">Journey C</span> Upgrade or Modernize an Existing App Safely &mdash; <code>scf-audit</code> &rarr; <code>scf-change-impact</code> &rarr; <code>scf-architect</code></h3>
-        <p>
-          <strong>Scenario:</strong> You already have a working app, and a client asks for a big mid-project change (e.g.,
-          adding multi-branch GST invoicing to a single-store app) without breaking existing customers.
-        </p>
-        <div class="diagram-box" style="box-shadow:none; margin:12px 0;">
-          <svg viewBox="0 0 940 120" width="940" height="120" xmlns="http://www.w3.org/2000/svg" aria-label="Journey C Flowchart">
-            <defs>
-              <marker id="arrC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#d97706" />
-              </marker>
-            </defs>
-            <rect x="10" y="20" width="170" height="72" rx="8" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
-            <text x="95" y="45" text-anchor="middle" font-size="11.5" font-weight="700" fill="#92400e">1. /scf-audit</text>
-            <text x="95" y="62" text-anchor="middle" font-size="10" fill="#334155">Inspect repo structure,</text>
-            <text x="95" y="77" text-anchor="middle" font-size="10" fill="#334155">pick pattern, flag debt</text>
-            <line x1="180" y1="56" x2="203" y2="56" stroke="#d97706" stroke-width="1.5" marker-end="url(#arrC)"/>
-
-            <rect x="205" y="20" width="185" height="72" rx="8" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
-            <text x="297" y="45" text-anchor="middle" font-size="11.5" font-weight="700" fill="#92400e">2. /scf-change-impact</text>
-            <text x="297" y="62" text-anchor="middle" font-size="10" fill="#334155">7-step ripple check:</text>
-            <text x="297" y="77" text-anchor="middle" font-size="10" fill="#334155">DB, API, UI, Specs, Tier</text>
-            <line x1="390" y1="56" x2="413" y2="56" stroke="#d97706" stroke-width="1.5" marker-end="url(#arrC)"/>
-
-            <rect x="415" y="20" width="170" height="72" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
-            <text x="500" y="45" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1e3a8a">3. /scf-architect</text>
-            <text x="500" y="62" text-anchor="middle" font-size="10" fill="#334155">Update Spec 0001/0002</text>
-            <text x="500" y="77" text-anchor="middle" font-size="10" font-weight="700" fill="#92400e">Boss "APPROVE" Gate</text>
-            <line x1="585" y1="56" x2="608" y2="56" stroke="#d97706" stroke-width="1.5" marker-end="url(#arrC)"/>
-
-            <rect x="610" y="20" width="155" height="72" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
-            <text x="687" y="45" text-anchor="middle" font-size="11.5" font-weight="700" fill="#065f46">4. Wave Upgrade</text>
-            <text x="687" y="62" text-anchor="middle" font-size="10" fill="#334155">/scf-develop + /scf-test</text>
-            <text x="687" y="77" text-anchor="middle" font-size="10" fill="#334155">Zero regression checks</text>
-            <line x1="765" y1="56" x2="788" y2="56" stroke="#d97706" stroke-width="1.5" marker-end="url(#arrC)"/>
-
-            <rect x="790" y="20" width="140" height="72" rx="8" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
-            <text x="860" y="45" text-anchor="middle" font-size="11.5" font-weight="700" fill="#5b21b6">5. Check &amp; Sync</text>
-            <text x="860" y="62" text-anchor="middle" font-size="10" fill="#334155">Sec-Ops + Doc-Sync</text>
-            <text x="860" y="77" text-anchor="middle" font-size="10" fill="#334155">Manual /scf-deploy</text>
-          </svg>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===================================================================== -->
-    <!-- SECTION 5: REAL VERIFICATION PROOF APPENDIX                           -->
-    <!-- ===================================================================== -->
-    <section id="verification">
-      <div class="section-header">
-        <span class="section-num">5</span>
-        <h2>Real Verification Proof Appendix</h2>
-      </div>
-
-      <div class="callout success">
-        <strong>100% Machine-Verified &mdash; All 7 Verification Commands Exited With Code 0</strong>
-        Every command below was executed read-only by <code>@verifier</code> on Windows PowerShell against the live
-        repository (board post <code>#5</code>). Zero stubs, zero skipped checks.
-      </div>
-
+    <section class="card">
+      <h2>1. System Overview &amp; Latest Antigravity v2.0 Architecture</h2>
+      <p>Your Mother Factory turns plain-language business ideas into tested, secure software using <strong>15 Dedicated Specialist Agents</strong>, <strong>20 Factory Skills</strong>, <strong>31 Pre-Bundled Open-Source Specialist Repos</strong>, and a <strong>₹0 Local Boss Dashboard</strong>.</p>
       <div class="grid-3">
-        <div class="card">
-          <h3>GitHub &amp; Git Status</h3>
-          <p style="margin:0; font-size:13.5px;">
-            <span class="badge badge-green">Exit 0 &times; 3</span><br />
-            Repo: <code>software-company-factory</code> (<code>PRIVATE</code>)<br />
-            Branch: <code>main</code> (working tree clean)<br />
-            Remote tags: <code>checkpoint-init</code>, <code>checkpoint-wave-2</code>, <code>checkpoint-wave-3</code>, <code>checkpoint-wave-4</code>
-          </p>
+        <div class="box">
+          <h3>Default Automatic Mode</h3>
+          <div class="muted">Run <code>/software-company-factory-start</code>, describe your idea, reply <code>APPROVE</code> on the Plain-English Spec, and finish with <code>/software-company-factory-end</code>.</div>
         </div>
-        <div class="card">
-          <h3>Skills &amp; Portability</h3>
-          <p style="margin:0; font-size:13.5px;">
-            <span class="badge badge-green">18 / 18 Passed (Exit 0)</span><br />
-            Every skill in <code>.agents/skills/&lt;name&gt;/SKILL.md</code> has <code>agents/openai.yaml</code>, passes byte
-            budgets, and has <strong>0 hardcoded model names</strong>.
-          </p>
+        <div class="box">
+          <h3>Zero-Caveman Boss Rule</h3>
+          <div class="muted">Internal agent/Swarm logs use compact <code>caveman</code> shorthand to save ~65–75% tokens, while Boss chats &amp; dashboards are always clear everyday Hinglish/English.</div>
         </div>
-        <div class="card">
-          <h3>Hooks &amp; Guards Self-Test</h3>
-          <p style="margin:0; font-size:13.5px;">
-            <span class="badge badge-green">14 / 14 Passed (Exit 0)</span><br />
-            <code>hook-runner.mjs --self-test</code>: 14/14<br />
-            <code>ast-collision-guard.mjs --self-test</code>: PASS<br />
-            <code>analyze-token-usage.mjs</code>: 5 slots active
-          </p>
+        <div class="box">
+          <h3>100% Model-Agnostic</h3>
+          <div class="muted">All 5 roles resolve dynamically from <code>.factory/models.json</code> (<code>light_ops_slot</code>, <code>worker_slot</code>, <code>architect_slot</code>, <code>deep_logic_slot</code>, <code>blind_reviewer_slot</code>).</div>
         </div>
       </div>
 
-      <div class="card">
-        <h3>5.1 GitHub &amp; Git Verification (Exit Codes: 0, 0, 0)</h3>
-        <div class="terminal"><span class="terminal-cmd">&gt; gh repo view --json name,visibility,url,defaultBranchRef  (exit 0)</span>{"defaultBranchRef":{"name":"main"},"name":"software-company-factory","url":"https://github.com/aipro831gith/software-company-factory","visibility":"PRIVATE"}</div>
-        <div class="terminal"><span class="terminal-cmd">&gt; git ls-remote --heads --tags origin  (exit 0)</span>10b88eeb21de849a573c20d09cc82de0db36363b	refs/heads/main
-60b39009931e86eccba1dbd0191acc328a1f2e3d	refs/tags/checkpoint-init
-d3067f790a760e2313e26b6c18218c375af13b23	refs/tags/checkpoint-wave-2
-e857e289a8e539d3e7ad2db32962b20775165c9a	refs/tags/checkpoint-wave-3
-10b88eeb21de849a573c20d09cc82de0db36363b	refs/tags/checkpoint-wave-4</div>
-        <div class="terminal"><span class="terminal-cmd">&gt; git status  (exit 0)</span>On branch main
-Your branch is up to date with 'origin/main'.
+      <div style="margin-top:16px;">
+        <svg viewBox="0 0 980 120" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#0f4c81"/>
+            </marker>
+          </defs>
+          <rect x="10" y="25" width="145" height="66" rx="10" fill="#e8f1fa" stroke="#0f4c81" stroke-width="1.5"/>
+          <text x="82" y="53" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">1. Discover + Grill Me</text>
+          <text x="82" y="72" text-anchor="middle" font-size="11" fill="#526075">Agents #1 &amp; #2</text>
 
-nothing to commit, working tree clean</div>
-      </div>
+          <line x1="155" y1="58" x2="195" y2="58" stroke="#0f4c81" stroke-width="2" marker-end="url(#arrow)"/>
+          <rect x="200" y="25" width="155" height="66" rx="10" fill="#fef3c7" stroke="#b45309" stroke-width="1.5"/>
+          <text x="277" y="53" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">2. Plain-English Spec</text>
+          <text x="277" y="72" text-anchor="middle" font-size="11" fill="#526075">Boss "APPROVE" Gate</text>
 
-      <div class="card">
-        <h3>5.2 Factory Verification Scripts (Exit Codes: 0, 0, 0, 0)</h3>
-        <div class="terminal"><span class="terminal-cmd">&gt; node scripts/check-portability.mjs  (exit 0, 18/18 skills passed)</span>=== check-portability.mjs :: PASS ===
-Validated skills: 18/18
-  [OK] scf-architect (SKILL.md=12322B, hotPath=19510B, subFiles=4)
-  [OK] scf-audit (SKILL.md=4913B, hotPath=8389B, subFiles=4)
-  [OK] scf-change-impact (SKILL.md=4619B, hotPath=6241B, subFiles=1)
-  [OK] scf-check (SKILL.md=5467B, hotPath=8265B, subFiles=3)
-  [OK] scf-debug (SKILL.md=4458B, hotPath=5752B, subFiles=1)
-  [OK] scf-deploy (SKILL.md=4593B, hotPath=5779B, subFiles=1)
-  [OK] scf-develop (SKILL.md=6340B, hotPath=11819B, subFiles=5)
-  [OK] scf-discover (SKILL.md=6594B, hotPath=10661B, subFiles=2)
-  [OK] scf-doc-sync (SKILL.md=5327B, hotPath=6812B, subFiles=2)
-  [OK] scf-handbook (SKILL.md=4743B, hotPath=7071B, subFiles=1)
-  [OK] scf-hardware-compliance (SKILL.md=4972B, hotPath=5931B, subFiles=1)
-  [OK] scf-legacy-re (SKILL.md=5263B, hotPath=7038B, subFiles=2)
-  [OK] scf-research (SKILL.md=4687B, hotPath=8340B, subFiles=3)
-  [OK] scf-scope (SKILL.md=6495B, hotPath=9873B, subFiles=4)
-  [OK] scf-sec-ops (SKILL.md=7236B, hotPath=12783B, subFiles=5)
-  [OK] scf-test (SKILL.md=4514B, hotPath=6568B, subFiles=2)
-  [OK] software-company-factory-end (SKILL.md=4202B, hotPath=5226B, subFiles=1)
-  [OK] software-company-factory-start (SKILL.md=6533B, hotPath=7578B, subFiles=1)</div>
+          <line x1="355" y1="58" x2="395" y2="58" stroke="#0f4c81" stroke-width="2" marker-end="url(#arrow)"/>
+          <rect x="400" y="25" width="175" height="66" rx="10" fill="#e8f1fa" stroke="#0f4c81" stroke-width="1.5"/>
+          <text x="487" y="53" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">3. Hybrid /swarm Waves</text>
+          <text x="487" y="72" text-anchor="middle" font-size="11" fill="#526075">3-5 Workers · &lt;=40KB Slices</text>
 
-        <div class="terminal"><span class="terminal-cmd">&gt; node scripts/hook-runner.mjs --self-test  (exit 0, 14/14 checks passed)</span>[PASS] Self-test "session-lock ACTIVE": Session lock ACTIVE for software-company-factory.
-[PASS] Self-test "session-lock ENDED blocks": Session lock status is "ENDED". Run /software-company-factory-start first.
-[PASS] Self-test "block-float-money traps float GST": Floating-point money/weight math detected at src\badGst.js:1. Use integer paise/milligrams, BigInt, or Decimal.
-[PASS] Self-test "block-float-money allows BigInt paise": Scanned 1 file(s): zero floating-point money/weight violations.
-[PASS] Self-test "block-eval-usage traps eval()": Unsafe dynamic code execution (eval/Function) found in src\badEval.js
-[PASS] Self-test "block-env-staging traps .env": Blocked sensitive files from staging/commit: .env.local
-[PASS] Self-test "block-env-staging allows .env.example": Zero .env or private key files staged.
-[PASS] Self-test "block-hardcoded-secrets traps API key": Potential secret (Google API key) detected in src\secret.js
-[PASS] Self-test "block-assumed-spec-done traps ASSUMED+DONE": Spec 0001 violation: SPEC-001.md has BuildState DONE while Status is ASSUMED.
-[PASS] Self-test "block-unsourced-values traps missing Value Sourcing": Spec 0002 violation: SPEC-001.md is Medium/Full tier but missing Value Sourcing section.
-[PASS] Self-test "block-unapproved-deploy blocks without Boss approval": Production deploy blocked: explicit manual Boss /scf-deploy approval is required.
-[PASS] Self-test "pre-commit-portability on Mother Factory": check-portability.mjs passed.
-[PASS] Self-test "pre-commit-lint-typecheck on Mother Factory": Node syntax check passed for factory scripts.
-[PASS] Self-test "pre-commit-ast-collision on Mother Factory": ast-collision-guard.mjs passed.
+          <line x1="575" y1="58" x2="615" y2="58" stroke="#0f4c81" stroke-width="2" marker-end="url(#arrow)"/>
+          <rect x="620" y="25" width="165" height="66" rx="10" fill="#e6f6ee" stroke="#0f7b4c" stroke-width="1.5"/>
+          <text x="702" y="53" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">4. QA + 5-Stage Sec</text>
+          <text x="702" y="72" text-anchor="middle" font-size="11" fill="#526075">Agents #9, #10, #11</text>
 
-Self-test summary: 14/14 checks passed.</div>
-
-        <div class="terminal"><span class="terminal-cmd">&gt; node scripts/ast-collision-guard.mjs --self-test  (exit 0)</span>[PASS] ast-collision-guard.mjs self-test verified file collision detection.</div>
-
-        <div class="terminal"><span class="terminal-cmd">&gt; node scripts/analyze-token-usage.mjs  (exit 0)</span>=== software-company-factory :: Context &amp; Slot Usage Report ===
-Routing Mode: FOUNDER_OVERRIDE_ALLOWED (UI Override: true)
-Configured Abstract Slots (5): light_ops_slot, worker_slot, architect_slot, deep_logic_slot, blind_reviewer_slot
-
-Wave Plan: No active wave-plan.json yet.
-
-Bug Tickets (0):</div>
+          <line x1="785" y1="58" x2="825" y2="58" stroke="#0f4c81" stroke-width="2" marker-end="url(#arrow)"/>
+          <rect x="830" y="25" width="140" height="66" rx="10" fill="#e6f6ee" stroke="#0f7b4c" stroke-width="1.5"/>
+          <text x="900" y="53" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">5. Manual /scf-deploy</text>
+          <text x="900" y="72" text-anchor="middle" font-size="11" fill="#526075">Dashboard :4173</text>
+        </svg>
       </div>
     </section>
 
+    <section class="card">
+      <h2>2. 15 Dedicated Specialist Agents + Dynamic Wave Pool</h2>
+      <p class="muted">Agents #9 (Cybersecurity), #14 (Legacy Reverse-Engineering), and #15 (Hardware &amp; IoT) are 100% separate in v2.0. Every edit routes through its owning domain and logs to <code>.factory/board/messages.jsonl</code>.</p>
+      <table>
+        <thead><tr><th>#</th><th>Dedicated Agent</th><th>Department</th><th>Owned Paths</th><th>Key Vendored / Factory Tools</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Salesman &amp; Client Discovery Lead</td><td>Front Desk</td><td><code>docs/product/</code></td><td><code>scf-discover</code>, <code>scf-grill-me</code>, <code>scf-handbook</code></td></tr>
+          <tr><td>2</td><td>Market &amp; Tech Researcher</td><td>Front Desk</td><td><code>docs/product/RESEARCH-*.md</code></td><td><code>scf-research</code>, <code>upstash/context7</code> MCP</td></tr>
+          <tr><td>3</td><td>Master Coordinator &amp; Swarm Lead</td><td>Command</td><td><code>docs/scope/</code>, <code>.factory/board/</code></td><td><code>scf-scope</code>, <code>scf-swarm-dispatch</code>, <code>workflow-runner.mjs</code></td></tr>
+          <tr><td>4</td><td>Chief System Architect</td><td>Command</td><td><code>docs/specs/</code></td><td><code>scf-architect</code>, <code>obra/superpowers</code>, <code>google/skills</code></td></tr>
+          <tr><td>5</td><td>Change-Impact &amp; Codebase Auditor</td><td>Command</td><td><code>AUDIT-*.md</code>, <code>IMPACT-*.md</code></td><td><code>scf-audit</code>, <code>scf-change-impact</code>, <code>addyosmani/agent-skills</code></td></tr>
+          <tr><td>6</td><td>Frontend Lead (+ Swarm Workers)</td><td>Builders</td><td><code>src/web/</code>, <code>src/app/</code>, <code>src/components/</code></td><td><code>impeccable</code>, <code>ui-ux-pro-max</code>, <code>vercel-agent-skills</code></td></tr>
+          <tr><td>7</td><td>Backend Lead (+ Swarm Workers)</td><td>Builders</td><td><code>src/server/</code>, <code>src/api/</code>, <code>src/services/</code></td><td><code>jsmastery-skills</code>, <code>mattpocock/skills</code>, <code>obra/superpowers</code></td></tr>
+          <tr><td>8</td><td>Database &amp; Schema Specialist</td><td>Builders</td><td><code>src/db/</code>, <code>prisma/</code>, <code>migrations/</code></td><td><code>supabase/agent-skills</code>, optional <code>prisma/skills</code></td></tr>
+          <tr><td>9</td><td><strong>Dedicated Cybersecurity Specialist</strong></td><td>Security</td><td><code>.factory/gates/*-security.md</code></td><td><code>claude-code-owasp</code>, <code>semgrep</code>, <code>ecc-security</code>, <code>gitleaks</code>, <code>trivy</code>, internal <code>trailofbits</code></td></tr>
+          <tr><td>10</td><td>QA Verification &amp; Browser Tester</td><td>Quality</td><td><code>tests/</code>, <code>.factory/gates/</code></td><td><code>scf-check</code>, <code>scf-test</code>, <code>playwright-skill</code></td></tr>
+          <tr><td>11</td><td>Cross-Model Blind Reviewer &amp; Debugger</td><td>Quality</td><td><code>.factory/tickets/RCA-*.md</code></td><td><code>scf-check review</code>, <code>scf-debug</code> (3-attempt circuit breaker)</td></tr>
+          <tr><td>12</td><td>GitHub, Version Control &amp; Backup</td><td>Integrity</td><td><code>.git/</code></td><td><code>github-mcp-server</code>, <code>git-checkpoint.mjs</code>, <code>ast-collision-guard.mjs</code></td></tr>
+          <tr><td>13</td><td>Docs, Dashboard &amp; Manual Release</td><td>Release</td><td><code>STATUS.md</code>, <code>dashboard/</code></td><td><code>scf-doc-sync</code>, <code>scf-deploy</code>, <code>anthropics/skill-creator</code></td></tr>
+          <tr><td>14</td><td><strong>Legacy Reverse-Engineering Specialist</strong></td><td>Modernize</td><td><code>LEGACY-REA-*.md</code></td><td><code>scf-legacy-re</code>, <code>morluto/rea</code>, <code>storytold/craft-anything</code></td></tr>
+          <tr><td>15</td><td><strong>Hardware &amp; IoT Compliance Specialist</strong></td><td>Hardware</td><td><code>HARDWARE-*.md</code></td><td><code>scf-hardware-compliance</code> (dormant zero-overhead)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>3. Three Complete Client Roadmaps</h2>
+      <div class="grid-3">
+        <div class="box">
+          <h3>Journey A: Zero-to-One New App</h3>
+          <p class="muted">Example: Father's Jewelry Business ERP</p>
+          <p><code>/scf-discover</code> + <code>/scf-grill-me</code> → <code>/scf-research</code> → <code>/scf-handbook</code> → <code>/scf-scope</code> (<code>Full</code>) → <code>/scf-architect</code> (Boss <code>APPROVE</code>) → <code>/scf-swarm-dispatch</code> → <code>/scf-test</code> + <code>/scf-sec-ops</code> → manual <code>/scf-deploy</code>.</p>
+        </div>
+        <div class="box">
+          <h3>Journey B: Reverse Engineer &amp; Rebuild</h3>
+          <p class="muted">Example: Old Desktop Billing / Messy Excel</p>
+          <p>Baseline Git quarantine → Agent #14 runs <code>/scf-legacy-re</code> (<code>rea-analysis</code> + <code>craft-modernize</code>) → Triad Option → Strangler Facade rebuild + 20-case integer-paise reconciliation tests.</p>
+        </div>
+        <div class="box">
+          <h3>Journey C: Safely Upgrade Live App</h3>
+          <p class="muted">Example: Add New GST Slab or Loyalty Module</p>
+          <p><code>/scf-audit</code> → <code>/scf-change-impact</code> (7-step ripple check on DB &amp; old bills) → <code>/scf-architect</code> re-approval → owning domain agents via <code>/swarm</code> → full gate re-verify.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>4. ₹0 Local Boss Mission Control &amp; Verified Proof</h2>
+      <p>Run <code>node dashboard/server.mjs</code> and open <a href="http://localhost:4173" target="_blank">http://localhost:4173</a> (Windows &amp; macOS compatible, 0 LLM calls, live SSE sync).</p>
+      <pre>GitHub Private Repo: https://github.com/aipro831gith/software-company-factory
+Local Workspace:     C:\dev\software-company-factory
+check-portability:   PASS (20/20 canonical factory skills, zero hardcoded model names)
+hook-runner --self:  PASS (16/16 checks, including block-float-money &amp; block-client-agpl-leak)
+workflow-runner:     PASS (15 agents, 3 default / 5 burst workers, JSONL board verified)
+Vendored Repos:      18 Bucket A Core + 13 Bucket B Optional verified (0 nested .git)</pre>
+    </section>
   </main>
 
-  <footer class="footer">
-    <strong>Software Company Factory</strong> &bull; Master Constitution: <code>AGENTS.md</code> &bull;
-    Generated for Founder &amp; Client Onboarding
-  </footer>
-
+  <script>
+    const btn = document.getElementById('theme-toggle');
+    btn.addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme');
+      const next = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      btn.textContent = next === 'dark' ? 'Light Mode' : 'Dark Mode';
+    });
+  </script>
 </body>
 </html>

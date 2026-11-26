@@ -60,3 +60,11 @@ Cover all 5 critical test buckets:
 Run the test suite in PowerShell, capture exact `passed / failed / skipped` counts, and hand off results to `/scf-check verify`.
 - If `failed > 0`: emit `.factory/tickets/BUG-<NNN>.json` per failing module and hand off to Master Build Orchestrator.
 - If `failed === 0 && skipped === 0`: report exact command output to `/scf-check`.
+
+---
+
+## 4. Vendored Core Specialist Bindings (`.factory/skills-registry.json`)
+
+- `vendor/specialist-skills/core/playwright-skill` (`ANTIGRAVITY_ADAPTER.md`) — Sequential E2E browser testing (`--workers=1` or `2` on 16 GB RAM).
+- `vendor/specialist-skills/core/obra-superpowers` — Strict Test-Driven Development (TDD) and edge-case assertion patterns.
+- `vendor/specialist-skills/core/jsmastery-skills` — Integration & boundary suite structures.

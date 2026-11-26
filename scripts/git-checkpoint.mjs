@@ -19,7 +19,12 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 
 function runGit(args, cwd = REPO_ROOT, allowFail = false) {
   try {
-    return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+    return execFileSync('git', args, {
+      cwd,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
   } catch (err) {
     if (allowFail) return null;
     const stderr = err.stderr ? err.stderr.toString() : err.message;

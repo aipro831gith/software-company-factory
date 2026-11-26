@@ -56,3 +56,10 @@ Record clearly:
 
 - **Never Suppress Errors to Fake Green:** Never wrap broken logic in empty `try { ... } catch {}`, never delete failing tests, and never disable any of the 15 fail-closed hooks.
 - **Zero Hardcoded Model Names:** Always resolve `deep_logic_slot` dynamically from `.factory/models.json`.
+
+---
+
+## 4. Vendored Core Specialist Bindings (`.factory/skills-registry.json`)
+
+- `vendor/specialist-skills/core/obra-superpowers` — Systematic root-cause debugging (reproduce -> isolate -> hypothesis -> minimal probe).
+- `vendor/specialist-skills/core/addyosmani-agent-skills` — Regression analysis and code review cross-checks.

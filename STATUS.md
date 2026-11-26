@@ -11,7 +11,7 @@
 - **v1.1 Baseline + GitHub Backup:** 18 skills, 15 hooks, 9 scripts, private repo pushed (`https://github.com/aipro831gith/software-company-factory`).
 - **v2.0 Batch 0 (Complete):** Safely migrated repository out of OneDrive to `C:\dev\software-company-factory`.
 - **v2.0 Batch 1 (Complete):** Added `.factory/skills-registry.json` (15 agents + 31 specialist repos), `.factory/board/messages.jsonl`, `scripts/sync-vendor-skills.ps1`, `scripts/workflow-runner.mjs`, updated `.factory/config.json` (default 3 / burst max 5 workers), lean 4-MCP `context7`+`github` template, `AGENTS.md` v2.0, and `scf-grill-me` + `scf-swarm-dispatch` (**20/20** skills).
-- **v2.0 Batch 2 (Pending):** Pre-bundle 18 Bucket A Core specialist skills into `vendor/specialist-skills/core/`.
+- **v2.0 Batch 2 (Complete):** Pre-bundled all 18 Bucket A Core specialist repos into `vendor/specialist-skills/core/` (nested `.git` stripped), adapted `[PORTABLE]` skills, created `THIRD_PARTY_LICENSES.md`, and wired domain skills.
 - **v2.0 Batch 3 (Pending):** Pre-bundle 13 Bucket B Optional plug-ins + `block-client-agpl-leak` + deepen Agents #9, #14, #15.
 - **v2.0 Batch 4 (Pending):** Build ₹0 Local Boss Mission Control Dashboard (`http://localhost:4173`), update guides, push to GitHub.
 

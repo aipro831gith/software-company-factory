@@ -91,3 +91,13 @@ Immediately after Wave `N` workers finish:
 Once all waves in `.factory/waves/wave-plan.json` are committed and green:
 - Update `BuildState: BUILT_PENDING_QA` in `docs/specs/SPEC-<NNN>-<slug>.md`.
 - Automatically invoke `/scf-test` (Agent #10 writes/runs test suites) followed by `/scf-check` (`verify` mode for all tiers ≥ `Lean`, plus `review` mode via `blind_reviewer_slot` for `Full` tier).
+
+---
+
+## 6. Vendored Core Specialist Bindings (`.factory/skills-registry.json`)
+
+Load ONLY the matching domain specialist skill on-demand (`<= 40 KB` worker slice; zero cross-domain edits):
+- **Agent #6 Frontend:** `vendor/specialist-skills/core/impeccable`, `vendor/specialist-skills/core/ui-ux-pro-max`, `vendor/specialist-skills/core/vercel-agent-skills`, `vendor/specialist-skills/core/mattpocock-skills`, plus `context7` MCP.
+- **Agent #7 Backend:** `vendor/specialist-skills/core/jsmastery-skills`, `vendor/specialist-skills/core/obra-superpowers` (strict TDD), `vendor/specialist-skills/core/mattpocock-skills`, `vendor/specialist-skills/core/addyosmani-agent-skills`, plus `context7` MCP.
+- **Agent #8 Database:** `vendor/specialist-skills/core/supabase-agent-skills` (Postgres, RLS, migrations, integer columns).
+- **Internal Swarm Shorthand Only:** `vendor/specialist-skills/core/caveman` (strictly for `.factory/board/messages.jsonl` and internal worker handoffs — NEVER on Boss chat).

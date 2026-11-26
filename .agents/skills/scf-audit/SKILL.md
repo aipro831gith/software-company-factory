@@ -61,3 +61,11 @@ Include:
 
 - **Never Refactor Blindly During Audit:** Audit produces findings and an approved plan; actual code changes happen only through `/scf-architect` → `/scf-develop` (with disjoint wave ownership) → `/scf-test`.
 - **Zero Jargon Without Translation:** Whenever mentioning `Clean Architecture`, `DDD`, `SOLID`, or `Circular Dependency`, include a 1-line plain meaning and Google-searchable keyword.
+
+---
+
+## 5. Vendored Core Specialist Bindings (`.factory/skills-registry.json`)
+
+Load selectively on-demand via Progressive Disclosure (`<= 90 KB` hot-path):
+- `vendor/specialist-skills/core/addyosmani-agent-skills` — Production code quality, maintainability, and architecture review heuristics.
+- `vendor/specialist-skills/core/jsmastery-skills` — Codebase structure and dependency audit checklists.

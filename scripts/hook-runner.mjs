@@ -57,6 +57,7 @@ function getStagedFiles(rootDir, explicitFiles = []) {
     const out = execFileSync('git', ['diff', '--cached', '--name-only'], {
       cwd: rootDir,
       encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
       stdio: ['ignore', 'pipe', 'pipe'],
     }).trim();
     return out ? out.split(/\r?\n/).filter(Boolean) : [];

@@ -139,3 +139,12 @@ Whenever a spec is classified **`Full`** (money, GST, jewelry weights, ledgers, 
 | Any Spec 0002 field lacks a verified source (`TBD` / `ASSUMED`) | Do NOT guess. Ask the Founder with Triad Options (`[BEST SUGGESTION]`) or run `/scf-research` before finalizing the spec. |
 | Spec requires > 15 new files across > 3 concurrent slices | Split into smaller specs (`SPEC-NNNA`, `SPEC-NNNB`) or design clean sequential waves of max 3 workers each (`<= 40 KB` slice per worker). |
 | Hook `block-assumed-spec-done` or `block-unsourced-values` fails | Halt immediately, fix the missing spec metadata or value source, and re-run the hook until exit code `0`. |
+
+---
+
+## 7. Vendored Core Specialist Bindings (`.factory/skills-registry.json`)
+
+Load selectively on-demand via Progressive Disclosure (`<= 90 KB` hot-path; zero hardcoded model names):
+- `vendor/specialist-skills/core/obra-superpowers` — Spec-first planning and disciplined architecture verification patterns.
+- `vendor/specialist-skills/core/jsmastery-skills` — Modular architecture templates and progressive skill design standards.
+- `vendor/specialist-skills/core/google-skills` — Google ecosystem, Firebase/Cloud, and modern web platform guidance.

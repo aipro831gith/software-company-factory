@@ -74,3 +74,12 @@ Execute stages strictly in order:
 1. For every `BLOCKER`/`HIGH` finding, emit `.factory/tickets/BUG-<NNN>.json` routed strictly to `owner_agent` (`database`, `backend`, or `frontend`).
 2. Explain any security finding to the Founder in plain Hinglish/English with a 1-line meaning + Google-searchable keyword (never scary unexplained acronyms).
 3. Only when all required stages (`1–3` for `Medium`, `1–5` for `Full`) report zero open `BLOCKER`/`HIGH` findings, certify `security_gate: "PASS"` in `.factory/gates/<feature>.gate.json` and hand off to `/scf-doc-sync` and `/scf-deploy`.
+
+---
+
+## 5. Vendored Core Specialist Bindings (`.factory/skills-registry.json`)
+
+Agent #9 (Dedicated Cybersecurity Specialist) loads ONLY the relevant adapted entry file on-demand (`<= 90 KB` hot-path):
+- `vendor/specialist-skills/core/claude-code-owasp/ANTIGRAVITY_ADAPTER.md` (`skills/owasp-security/SKILL.md`) — OWASP 2025 + ASVS 5.0 + Agentic AI controls.
+- `vendor/specialist-skills/core/semgrep-skills/ANTIGRAVITY_ADAPTER.md` (`skills/code-security/SKILL.md`, `skills/llm-security/SKILL.md`) — Sequential static rule scanning.
+- `vendor/specialist-skills/core/ecc-security/ANTIGRAVITY_ADAPTER.md` (`skills/security-review/SKILL.md`) — Production hardening & adversarial security review.

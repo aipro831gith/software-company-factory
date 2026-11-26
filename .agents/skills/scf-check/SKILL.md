@@ -70,3 +70,10 @@ Once `verify` (and `review` for `Full`) passes with zero `OPEN` blockers:
 - Write `.factory/gates/<feature>.gate.json` with `status: "PASS"`, `spec_status: "APPROVED"`, `checks_passed`, `blind_review_status`, and concrete `evidence` strings.
 - Run `node scripts/gate-check.mjs --feature <feature>` and confirm `exit code 0`.
 - Hand off to `/scf-sec-ops` (Phase 4 Security Audit) and `/scf-doc-sync`.
+
+---
+
+## 5. Vendored Core Specialist Bindings (`.factory/skills-registry.json`)
+
+- **Agent #10 Live Verify (`verify`):** `vendor/specialist-skills/core/playwright-skill` (`ANTIGRAVITY_ADAPTER.md` -> `skills/playwright-skill/SKILL.md`), `vendor/specialist-skills/core/obra-superpowers` (verification-before-completion), `vendor/specialist-skills/core/jsmastery-skills`.
+- **Agent #11 Blind Review (`review`):** `vendor/specialist-skills/core/addyosmani-agent-skills` (independent code review via `blind_reviewer_slot`).
